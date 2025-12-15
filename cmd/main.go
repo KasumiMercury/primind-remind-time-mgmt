@@ -39,6 +39,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		slog.Error("failed to get underlying sql.DB", "error", err)
+		os.Exit(1)
+	}
+
 	remindRepo := repository.NewRemindRepository(db)
 
 	remindUseCase := app.NewRemindUseCase(remindRepo)
@@ -87,6 +93,10 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("server forced to shutdown", "error", err)
 		os.Exit(1)
+	}
+
+	if err := sqlDB.Close(); err != nil {
+		slog.Error("failed to close database connection", "error", err)
 	}
 
 	slog.Info("server exited properly")
