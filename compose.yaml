@@ -1,0 +1,53 @@
+services:
+    server:
+        build:
+            context: .
+            target: dev
+            dockerfile: ./Dockerfile
+        volumes:
+            - .:/app
+        ports:
+            - "8080:8080"
+            - "8081:8081"
+        env_file:
+            - .env
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    postgres:
+        image: postgres:18
+        environment:
+            POSTGRES_USER: primind_user
+            POSTGRES_PASSWORD: primind_password
+            POSTGRES_DB: primind_db
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 5s
+
+    migrate:
+        image: arigaio/atlas:latest
+        command: >
+            migrate apply
+            --url postgres://primind_user:primind_password@postgres:5432/primind_db?sslmode=disable
+        depends_on:
+            postgres:
+                condition: service_healthy
+        volumes:
+            - ./migrations/:/migrations
+
+volumes:
+    postgres_data:
+        driver: local
+
