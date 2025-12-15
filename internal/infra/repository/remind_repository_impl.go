@@ -170,7 +170,7 @@ func (r *remindRepositoryImpl) Update(ctx context.Context, remind *domain.Remind
 
 	m := FromEntity(remind)
 
-	result := r.db.WithContext(ctx).Save(m)
+	result := r.db.WithContext(ctx).Model(&RemindModel{}).Where("id = ?", m.ID).Updates(m)
 	if result.Error != nil {
 		slog.Error("failed to update remind in database",
 			"remind_id", remind.ID().String(),

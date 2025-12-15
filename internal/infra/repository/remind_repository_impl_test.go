@@ -546,7 +546,7 @@ func TestUpdateSuccess(t *testing.T) {
 	}
 }
 
-func TestUpdateUpsertBehaviorSuccess(t *testing.T) {
+func TestUpdateNotFoundError(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
@@ -561,7 +561,7 @@ func TestUpdateUpsertBehaviorSuccess(t *testing.T) {
 		name string
 	}{
 		{
-			name: "update non-existent remind creates it (upsert behavior)",
+			name: "update non-existent remind returns not found error",
 		},
 	}
 
@@ -593,11 +593,7 @@ func TestUpdateUpsertBehaviorSuccess(t *testing.T) {
 
 			err = repo.Update(ctx, remind)
 
-			assert.NoError(t, err)
-
-			found, err := repo.FindByID(ctx, remind.ID())
-			assert.NoError(t, err)
-			assert.Equal(t, remind.ID().String(), found.ID().String())
+			assert.ErrorIs(t, err, domain.ErrRemindNotFound)
 		})
 	}
 }
