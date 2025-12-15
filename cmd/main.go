@@ -54,18 +54,30 @@ func main() {
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
+	serverErr := make(chan error, 1)
+
 	go func() {
 		slog.Info("starting server", "address", cfg.Server.Address())
 
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("failed to start server", "error", err)
-			os.Exit(1)
+			serverErr <- err
 		}
+
+		close(serverErr)
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			slog.Error("server failed to start", "error", err)
+			os.Exit(1)
+		}
+	case sig := <-quit:
+		slog.Info("received shutdown signal", "signal", sig)
+	}
 
 	slog.Info("shutting down server")
 
