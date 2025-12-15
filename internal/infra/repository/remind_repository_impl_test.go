@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -683,6 +684,231 @@ func TestDeleteError(t *testing.T) {
 
 			err := repo.Delete(ctx, nonExistentID)
 
+			assert.ErrorIs(t, err, domain.ErrRemindNotFound)
+		})
+	}
+}
+
+func TestWithTxCommitSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	repo := repository.NewRemindRepository(testDB.DB)
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		remindCount int
+	}{
+		{
+			name:        "commit single remind",
+			remindCount: 1,
+		},
+		{
+			name:        "commit multiple reminds",
+			remindCount: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			userID, err := domain.UserIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+			taskID, err := domain.TaskIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+
+			d, err := domain.NewDevice("device", "token")
+			require.NoError(t, err)
+			devices, err := domain.NewDevices([]domain.Device{d})
+			require.NoError(t, err)
+
+			reminds := make([]*domain.Remind, tt.remindCount)
+			for i := 0; i < tt.remindCount; i++ {
+				remind, err := domain.NewRemind(
+					time.Now().Add(time.Duration(i+1)*time.Hour),
+					userID,
+					devices,
+					taskID,
+					domain.TypeNormal,
+				)
+				require.NoError(t, err)
+
+				reminds[i] = remind
+			}
+
+			err = repo.WithTx(ctx, func(txRepo domain.RemindRepository) error {
+				for _, remind := range reminds {
+					if err := txRepo.Save(ctx, remind); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			})
+
+			assert.NoError(t, err)
+
+			for _, remind := range reminds {
+				found, err := repo.FindByID(ctx, remind.ID())
+				assert.NoError(t, err)
+				assert.Equal(t, remind.ID().String(), found.ID().String())
+			}
+		})
+	}
+}
+
+func TestWithTxRollbackOnError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	repo := repository.NewRemindRepository(testDB.DB)
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "rollback on error leaves no data",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			userID, err := domain.UserIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+			taskID, err := domain.TaskIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+
+			d, err := domain.NewDevice("device", "token")
+			require.NoError(t, err)
+			devices, err := domain.NewDevices([]domain.Device{d})
+			require.NoError(t, err)
+
+			remind1, err := domain.NewRemind(
+				time.Now().Add(1*time.Hour),
+				userID,
+				devices,
+				taskID,
+				domain.TypeNormal,
+			)
+			require.NoError(t, err)
+
+			remind2, err := domain.NewRemind(
+				time.Now().Add(2*time.Hour),
+				userID,
+				devices,
+				taskID,
+				domain.TypeNormal,
+			)
+			require.NoError(t, err)
+
+			simulatedError := errors.New("simulated error")
+
+			err = repo.WithTx(ctx, func(txRepo domain.RemindRepository) error {
+				if err := txRepo.Save(ctx, remind1); err != nil {
+					return err
+				}
+
+				if err := txRepo.Save(ctx, remind2); err != nil {
+					return err
+				}
+
+				return simulatedError
+			})
+
+			assert.ErrorIs(t, err, simulatedError)
+
+			_, err = repo.FindByID(ctx, remind1.ID())
+			assert.ErrorIs(t, err, domain.ErrRemindNotFound)
+
+			_, err = repo.FindByID(ctx, remind2.ID())
+			assert.ErrorIs(t, err, domain.ErrRemindNotFound)
+		})
+	}
+}
+
+func TestWithTxRollbackOnSaveError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	repo := repository.NewRemindRepository(testDB.DB)
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "rollback when second save fails due to duplicate ID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			userID, err := domain.UserIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+			taskID, err := domain.TaskIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+
+			d, err := domain.NewDevice("device", "token")
+			require.NoError(t, err)
+			devices, err := domain.NewDevices([]domain.Device{d})
+			require.NoError(t, err)
+
+			remind1, err := domain.NewRemind(
+				time.Now().Add(1*time.Hour),
+				userID,
+				devices,
+				taskID,
+				domain.TypeNormal,
+			)
+			require.NoError(t, err)
+
+			remind2, err := domain.NewRemind(
+				time.Now().Add(2*time.Hour),
+				userID,
+				devices,
+				taskID,
+				domain.TypeNormal,
+			)
+			require.NoError(t, err)
+
+			err = repo.WithTx(ctx, func(txRepo domain.RemindRepository) error {
+				if err := txRepo.Save(ctx, remind1); err != nil {
+					return err
+				}
+
+				if err := txRepo.Save(ctx, remind2); err != nil {
+					return err
+				}
+
+				// Try to save remind1 again - should fail due to duplicate primary key
+				return txRepo.Save(ctx, remind1)
+			})
+
+			assert.Error(t, err)
+
+			_, err = repo.FindByID(ctx, remind1.ID())
+			assert.ErrorIs(t, err, domain.ErrRemindNotFound)
+
+			_, err = repo.FindByID(ctx, remind2.ID())
 			assert.ErrorIs(t, err, domain.ErrRemindNotFound)
 		})
 	}

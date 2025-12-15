@@ -96,17 +96,25 @@ func (uc *remindUseCaseImpl) CreateRemind(ctx context.Context, input CreateRemin
 			)
 		}
 
-		if err := uc.repo.Save(ctx, remind); err != nil {
-			slog.Error("failed to save remind",
-				"error", err,
-				"task_id", input.TaskID,
-				"time", t,
-			)
+		reminds = append(reminds, remind)
+	}
 
-			return RemindsOutput{}, fmt.Errorf("%w: %v", ErrInternalError, err)
+	if err := uc.repo.WithTx(ctx, func(txRepo domain.RemindRepository) error {
+		for _, remind := range reminds {
+			if err := txRepo.Save(ctx, remind); err != nil {
+				slog.Error("failed to save remind",
+					"error", err,
+					"task_id", input.TaskID,
+					"remind_id", remind.ID().String(),
+				)
+
+				return err
+			}
 		}
 
-		reminds = append(reminds, remind)
+		return nil
+	}); err != nil {
+		return RemindsOutput{}, fmt.Errorf("%w: %v", ErrInternalError, err)
 	}
 
 	slog.Debug("reminds created",

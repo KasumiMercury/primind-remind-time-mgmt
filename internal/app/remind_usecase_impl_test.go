@@ -635,3 +635,48 @@ func TestDeleteRemindError(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateRemindTransactionCommitSuccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		timesCount int
+	}{
+		{
+			name:       "all reminds persisted on successful commit",
+			timesCount: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			useCase, cleanup := setupUseCaseTest(t)
+			defer cleanup()
+
+			times := make([]time.Time, tt.timesCount)
+			for i := 0; i < tt.timesCount; i++ {
+				times[i] = time.Now().Add(time.Duration(i+1) * time.Hour)
+			}
+
+			input := app.CreateRemindInput{
+				Times:    times,
+				UserID:   generateUUIDv7String(),
+				Devices:  []app.DeviceInput{{DeviceID: "device-1", FCMToken: "token-1"}},
+				TaskID:   generateUUIDv7String(),
+				TaskType: "normal",
+			}
+
+			output, err := useCase.CreateRemind(context.Background(), input)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.timesCount, output.Count)
+
+			rangeInput := app.GetRemindsByTimeRangeInput{
+				Start: time.Now(),
+				End:   time.Now().Add(time.Duration(tt.timesCount+1) * time.Hour),
+			}
+			rangeOutput, err := useCase.GetRemindsByTimeRange(context.Background(), rangeInput)
+			require.NoError(t, err)
+			assert.Equal(t, tt.timesCount, rangeOutput.Count)
+		})
+	}
+}

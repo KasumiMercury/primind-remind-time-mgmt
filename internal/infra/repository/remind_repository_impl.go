@@ -224,3 +224,37 @@ func (r *remindRepositoryImpl) Delete(ctx context.Context, id domain.RemindID) e
 
 	return nil
 }
+
+func (r *remindRepositoryImpl) WithTx(ctx context.Context, fn func(repo domain.RemindRepository) error) error {
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		slog.Error("failed to begin transaction",
+			"error", tx.Error,
+		)
+
+		return tx.Error
+	}
+
+	txRepo := &remindRepositoryImpl{db: tx}
+
+	if err := fn(txRepo); err != nil {
+		if rbErr := tx.Rollback().Error; rbErr != nil {
+			slog.Error("failed to rollback transaction",
+				"error", rbErr,
+				"original_error", err,
+			)
+		}
+
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		slog.Error("failed to commit transaction",
+			"error", err,
+		)
+
+		return err
+	}
+
+	return nil
+}
