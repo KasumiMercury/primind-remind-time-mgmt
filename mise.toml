@@ -1,0 +1,6 @@
+[tools]
+atlas = "latest"
+go = "1.25.5"
+golangci-lint = "latest"
+lefthook = "latest"
+trivy = "latest"
