@@ -25,6 +25,9 @@ linters:
         exhaustruct:
             exclude:
                 - 'log/slog\.HandlerOptions'
+                - 'net/http\.Server'
+                - 'gorm\.io/gorm\.Config'
+                - '.*\.RemindModel'
         wsl_v5:
             allow-first-in-block: true
             allow-whole-block: false
