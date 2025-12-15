@@ -79,6 +79,9 @@ func main() {
 	case err := <-serverErr:
 		if err != nil {
 			slog.Error("server failed to start", "error", err)
+			if closeErr := sqlDB.Close(); closeErr != nil {
+				slog.Error("failed to close database connection", "error", closeErr)
+			}
 			os.Exit(1)
 		}
 	case sig := <-quit:
