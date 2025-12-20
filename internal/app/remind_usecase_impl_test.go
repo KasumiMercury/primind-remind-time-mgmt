@@ -42,13 +42,13 @@ func TestCreateRemindSuccess(t *testing.T) {
 			name:        "valid remind with single device and single time",
 			deviceCount: 1,
 			timesCount:  1,
-			taskType:    "normal",
+			taskType:    "near",
 		},
 		{
 			name:        "valid remind with multiple devices and single time",
 			deviceCount: 3,
 			timesCount:  1,
-			taskType:    "urgent",
+			taskType:    "short",
 		},
 		{
 			name:        "valid remind with multiple times",
@@ -123,7 +123,7 @@ func TestCreateRemindIdempotencySuccess(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "device-1", FCMToken: "token-1"}},
 				TaskID:   taskID,
-				TaskType: "normal",
+				TaskType: "near",
 			}
 
 			output1, err := useCase.CreateRemind(context.Background(), input)
@@ -154,7 +154,7 @@ func TestCreateRemindError(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			},
 			expectedField: "times",
 		},
@@ -165,7 +165,7 @@ func TestCreateRemindError(t *testing.T) {
 				UserID:   uuid.New().String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			},
 			expectedField: "user_id",
 		},
@@ -176,7 +176,7 @@ func TestCreateRemindError(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   uuid.New().String(),
-				TaskType: "normal",
+				TaskType: "near",
 			},
 			expectedField: "task_id",
 		},
@@ -187,7 +187,7 @@ func TestCreateRemindError(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			},
 			expectedField: "devices[0]",
 		},
@@ -198,7 +198,7 @@ func TestCreateRemindError(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: ""}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			},
 			expectedField: "devices[0]",
 		},
@@ -209,7 +209,7 @@ func TestCreateRemindError(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			},
 			expectedField: "devices",
 		},
@@ -242,7 +242,7 @@ func TestCreateRemindError(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			},
 			expectedField: "times[0]",
 		},
@@ -307,7 +307,7 @@ func TestGetRemindsByTimeRangeSuccess(t *testing.T) {
 					UserID:   generateUUIDv7String(),
 					Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 					TaskID:   generateUUIDv7String(),
-					TaskType: "normal",
+					TaskType: "near",
 				}
 				_, err := useCase.CreateRemind(context.Background(), input)
 				require.NoError(t, err)
@@ -350,7 +350,7 @@ func TestGetRemindsByTimeRangePartialSuccess(t *testing.T) {
 					UserID:   generateUUIDv7String(),
 					Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 					TaskID:   generateUUIDv7String(),
-					TaskType: "normal",
+					TaskType: "near",
 				}
 				_, err := useCase.CreateRemind(context.Background(), input)
 				require.NoError(t, err)
@@ -421,7 +421,7 @@ func TestUpdateThrottledSuccess(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
@@ -459,7 +459,7 @@ func TestUpdateThrottledIdempotencySuccess(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
@@ -535,7 +535,7 @@ func TestDeleteRemindSuccess(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
@@ -569,7 +569,7 @@ func TestDeleteRemindIdempotencySuccess(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
@@ -662,7 +662,7 @@ func TestCreateRemindTransactionCommitSuccess(t *testing.T) {
 				UserID:   generateUUIDv7String(),
 				Devices:  []app.DeviceInput{{DeviceID: "device-1", FCMToken: "token-1"}},
 				TaskID:   generateUUIDv7String(),
-				TaskType: "normal",
+				TaskType: "near",
 			}
 
 			output, err := useCase.CreateRemind(context.Background(), input)

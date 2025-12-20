@@ -59,7 +59,7 @@ func createValidRemind(t *testing.T, deviceCount int, throttled bool) *domain.Re
 		createValidUserID(t),
 		createValidDevices(t, deviceCount),
 		createValidTaskID(t),
-		domain.TypeNormal,
+		domain.TypeNear,
 		throttled,
 		time.Now().Add(-1*time.Hour),
 		time.Now(),
@@ -189,7 +189,7 @@ func TestToEntitySuccess(t *testing.T) {
 				UserID:    userID.String(),
 				Devices:   devicesJSON,
 				TaskID:    taskID.String(),
-				TaskType:  "normal",
+				TaskType:  "near",
 				Throttled: tt.throttled,
 				CreatedAt: createdAt,
 				UpdatedAt: updatedAt,
@@ -202,7 +202,7 @@ func TestToEntitySuccess(t *testing.T) {
 			assert.Equal(t, remindTime, entity.Time())
 			assert.Equal(t, userID.String(), entity.UserID().String())
 			assert.Equal(t, taskID.String(), entity.TaskID().String())
-			assert.Equal(t, domain.TypeNormal, entity.TaskType())
+			assert.Equal(t, domain.TypeNear, entity.TaskType())
 			assert.Equal(t, tt.throttled, entity.IsThrottled())
 			assert.Equal(t, createdAt, entity.CreatedAt())
 			assert.Equal(t, updatedAt, entity.UpdatedAt())
@@ -226,7 +226,7 @@ func TestToEntityError(t *testing.T) {
 					UserID:   createValidUserID(t).String(),
 					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
 					TaskID:   createValidTaskID(t).String(),
-					TaskType: "normal",
+					TaskType: "near",
 				}
 			},
 			expectedErr: "invalid",
@@ -240,7 +240,7 @@ func TestToEntityError(t *testing.T) {
 					UserID:   uuid.Must(uuid.NewRandom()).String(), // UUIDv4
 					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
 					TaskID:   createValidTaskID(t).String(),
-					TaskType: "normal",
+					TaskType: "near",
 				}
 			},
 			expectedErr: "UUIDv7",
@@ -254,7 +254,7 @@ func TestToEntityError(t *testing.T) {
 					UserID:   createValidUserID(t).String(),
 					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
 					TaskID:   uuid.Must(uuid.NewRandom()).String(), // UUIDv4
-					TaskType: "normal",
+					TaskType: "near",
 				}
 			},
 			expectedErr: "UUIDv7",
@@ -268,7 +268,7 @@ func TestToEntityError(t *testing.T) {
 					UserID:   createValidUserID(t).String(),
 					Devices:  repository.DevicesJSONB{{DeviceID: "", FCMToken: "t"}},
 					TaskID:   createValidTaskID(t).String(),
-					TaskType: "normal",
+					TaskType: "near",
 				}
 			},
 			expectedErr: "device ID",
@@ -282,7 +282,7 @@ func TestToEntityError(t *testing.T) {
 					UserID:   createValidUserID(t).String(),
 					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: ""}},
 					TaskID:   createValidTaskID(t).String(),
-					TaskType: "normal",
+					TaskType: "near",
 				}
 			},
 			expectedErr: "FCM token",
@@ -296,7 +296,7 @@ func TestToEntityError(t *testing.T) {
 					UserID:   createValidUserID(t).String(),
 					Devices:  repository.DevicesJSONB{},
 					TaskID:   createValidTaskID(t).String(),
-					TaskType: "normal",
+					TaskType: "near",
 				}
 			},
 			expectedErr: "at least one device",

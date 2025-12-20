@@ -59,7 +59,7 @@ func createValidRemind(t *testing.T, deviceCount int, throttled bool) *domain.Re
 		createValidUserID(t),
 		createValidDevices(t, deviceCount),
 		createValidTaskID(t),
-		domain.TypeNormal,
+		domain.TypeNear,
 		throttled,
 		time.Now().Add(-1*time.Hour),
 		time.Now(),

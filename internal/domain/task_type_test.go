@@ -13,21 +13,21 @@ func TestNewType(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name:    "valid urgent type",
-			input:   "urgent",
-			want:    TypeUrgent,
+			name:    "valid short type",
+			input:   "short",
+			want:    TypeShort,
 			wantErr: nil,
 		},
 		{
-			name:    "valid normal type",
-			input:   "normal",
-			want:    TypeNormal,
+			name:    "valid near type",
+			input:   "near",
+			want:    TypeNear,
 			wantErr: nil,
 		},
 		{
-			name:    "valid low type",
-			input:   "low",
-			want:    TypeLow,
+			name:    "valid relaxed type",
+			input:   "relaxed",
+			want:    TypeRelaxed,
 			wantErr: nil,
 		},
 		{
@@ -50,7 +50,7 @@ func TestNewType(t *testing.T) {
 		},
 		{
 			name:    "uppercase type returns error",
-			input:   "URGENT",
+			input:   "SHORT",
 			want:    "",
 			wantErr: ErrInvalidTaskType,
 		},
