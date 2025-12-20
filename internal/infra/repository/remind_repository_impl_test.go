@@ -68,7 +68,7 @@ func TestSaveSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -122,7 +122,7 @@ func TestSaveError(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -181,7 +181,7 @@ func TestFindByIDSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 				tt.throttled,
 				time.Now().Add(-1*time.Hour),
 				time.Now(),
@@ -281,7 +281,7 @@ func TestFindByTaskIDSuccess(t *testing.T) {
 					userID,
 					devices,
 					taskID,
-					domain.TypeNormal,
+					domain.TypeNear,
 					false,
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
@@ -395,7 +395,7 @@ func TestFindByTimeRangeSuccess(t *testing.T) {
 					userID,
 					devices,
 					taskID,
-					domain.TypeNormal,
+					domain.TypeNear,
 					false,
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
@@ -463,7 +463,7 @@ func TestFindByTimeRangeOrderSuccess(t *testing.T) {
 					userID,
 					devices,
 					taskID,
-					domain.TypeNormal,
+					domain.TypeNear,
 					false,
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
@@ -525,7 +525,7 @@ func TestUpdateSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -585,7 +585,7 @@ func TestUpdateNotFoundError(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 				false,
 				time.Now().Add(-1*time.Hour),
 				time.Now(),
@@ -636,7 +636,7 @@ func TestDeleteSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -731,7 +731,7 @@ func TestWithTxCommitSuccess(t *testing.T) {
 					userID,
 					devices,
 					taskID,
-					domain.TypeNormal,
+					domain.TypeNear,
 				)
 				require.NoError(t, err)
 
@@ -797,7 +797,7 @@ func TestWithTxRollbackOnError(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -806,7 +806,7 @@ func TestWithTxRollbackOnError(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -873,7 +873,7 @@ func TestWithTxRollbackOnSaveError(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -882,7 +882,7 @@ func TestWithTxRollbackOnSaveError(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
