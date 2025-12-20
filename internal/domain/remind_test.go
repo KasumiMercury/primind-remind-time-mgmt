@@ -56,17 +56,17 @@ func TestNewRemindSuccess(t *testing.T) {
 		taskType   domain.Type
 	}{
 		{
-			name:       "future time - 1 hour ahead with urgent type",
+			name:       "future time - 1 hour ahead with shrot type",
 			remindTime: time.Now().Add(1 * time.Hour),
 			taskType:   domain.TypeShort,
 		},
 		{
-			name:       "future time - 1 minute ahead with normal type",
+			name:       "future time - 1 minute ahead with near type",
 			remindTime: time.Now().Add(1 * time.Minute),
 			taskType:   domain.TypeNear,
 		},
 		{
-			name:       "future time - 24 hours ahead with low type",
+			name:       "future time - 24 hours ahead with relaxed type",
 			remindTime: time.Now().Add(24 * time.Hour),
 			taskType:   domain.TypeRelaxed,
 		},
