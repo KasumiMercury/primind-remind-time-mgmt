@@ -58,17 +58,17 @@ func TestNewRemindSuccess(t *testing.T) {
 		{
 			name:       "future time - 1 hour ahead with urgent type",
 			remindTime: time.Now().Add(1 * time.Hour),
-			taskType:   domain.TypeUrgent,
+			taskType:   domain.TypeShort,
 		},
 		{
 			name:       "future time - 1 minute ahead with normal type",
 			remindTime: time.Now().Add(1 * time.Minute),
-			taskType:   domain.TypeNormal,
+			taskType:   domain.TypeNear,
 		},
 		{
 			name:       "future time - 24 hours ahead with low type",
 			remindTime: time.Now().Add(24 * time.Hour),
-			taskType:   domain.TypeLow,
+			taskType:   domain.TypeRelaxed,
 		},
 		{
 			name:       "within tolerance - 30 seconds in past with scheduled type",
@@ -108,19 +108,19 @@ func TestNewRemindError(t *testing.T) {
 		{
 			name:        "past time - 2 minutes ago",
 			remindTime:  time.Now().Add(-2 * time.Minute),
-			taskType:    domain.TypeNormal,
+			taskType:    domain.TypeNear,
 			expectedErr: domain.ErrPastRemindTime,
 		},
 		{
 			name:        "past time - 1 hour ago",
 			remindTime:  time.Now().Add(-1 * time.Hour),
-			taskType:    domain.TypeNormal,
+			taskType:    domain.TypeNear,
 			expectedErr: domain.ErrPastRemindTime,
 		},
 		{
 			name:        "past time - 24 hours ago",
 			remindTime:  time.Now().Add(-24 * time.Hour),
-			taskType:    domain.TypeNormal,
+			taskType:    domain.TypeNear,
 			expectedErr: domain.ErrPastRemindTime,
 		},
 	}
@@ -168,7 +168,7 @@ func TestNewRemindWithMultipleDevicesSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 
 			assert.NoError(t, err)
@@ -197,7 +197,7 @@ func TestMarkAsThrottledSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 			assert.False(t, remind.IsThrottled())
@@ -230,7 +230,7 @@ func TestMarkAsThrottledError(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 			)
 			require.NoError(t, err)
 
@@ -279,7 +279,7 @@ func TestIsDueSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 				false,
 				time.Now(),
 				time.Now(),
@@ -312,7 +312,7 @@ func TestReconstituteSuccess(t *testing.T) {
 			userID := createValidUserID(t)
 			taskID := createValidTaskID(t)
 			devices := createValidDevices(t, 2)
-			taskType := domain.TypeNormal
+			taskType := domain.TypeNear
 			createdAt := time.Now().Add(-1 * time.Hour)
 			updatedAt := time.Now()
 
@@ -368,7 +368,7 @@ func TestReconstituteWithPastTimeSuccess(t *testing.T) {
 				userID,
 				devices,
 				taskID,
-				domain.TypeNormal,
+				domain.TypeNear,
 				false,
 				time.Now(),
 				time.Now(),
@@ -396,7 +396,7 @@ func TestRemindGettersSuccess(t *testing.T) {
 			userID := createValidUserID(t)
 			taskID := createValidTaskID(t)
 			devices := createValidDevices(t, 1)
-			taskType := domain.TypeNormal
+			taskType := domain.TypeNear
 			createdAt := time.Now().Add(-1 * time.Hour)
 			updatedAt := time.Now()
 
@@ -450,7 +450,7 @@ func TestNewRemindGeneratesUniqueIDsSuccess(t *testing.T) {
 					userID,
 					devices,
 					taskID,
-					domain.TypeNormal,
+					domain.TypeNear,
 				)
 				require.NoError(t, err)
 
