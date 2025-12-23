@@ -36,6 +36,10 @@ func setupTestRouter(t *testing.T, testDB *testutil.TestDB) *gin.Engine {
 	return router
 }
 
+type protoRemindResponse struct {
+	Remind handler.RemindResponse `json:"remind"`
+}
+
 func TestCreateRemindHandlerSuccess(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -75,7 +79,7 @@ func TestCreateRemindHandlerSuccess(t *testing.T) {
 			devices := make([]map[string]string, tt.deviceCount)
 			for i := 0; i < tt.deviceCount; i++ {
 				devices[i] = map[string]string{
-					"device_id": "device-" + string(rune('a'+i)),
+					"device_id": uuid.Must(uuid.NewV7()).String(),
 					"fcm_token": "token-" + string(rune('a'+i)),
 				}
 			}
@@ -90,7 +94,7 @@ func TestCreateRemindHandlerSuccess(t *testing.T) {
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
 				"devices":   devices,
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body, _ := json.Marshal(reqBody)
 
@@ -138,9 +142,9 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			name: "missing times",
 			requestBody: map[string]any{
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -149,9 +153,9 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			requestBody: map[string]any{
 				"times":     []string{},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -159,9 +163,9 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			name: "missing user_id",
 			requestBody: map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -171,7 +175,7 @@ func TestCreateRemindHandlerError(t *testing.T) {
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -182,7 +186,7 @@ func TestCreateRemindHandlerError(t *testing.T) {
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
 				"devices":   []map[string]string{},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -191,8 +195,8 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			requestBody: map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
-				"task_type": "near",
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -201,7 +205,7 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			requestBody: map[string]any{
 				"times":   []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id": uuid.Must(uuid.NewV7()).String(),
-				"devices": []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices": []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id": uuid.Must(uuid.NewV7()).String(),
 			},
 			expectedStatus: http.StatusBadRequest,
@@ -211,9 +215,9 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			requestBody: map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   "not-a-uuid",
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -222,9 +226,9 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			requestBody: map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   "not-a-uuid",
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -233,9 +237,9 @@ func TestCreateRemindHandlerError(t *testing.T) {
 			requestBody: map[string]any{
 				"times":     []string{time.Now().Add(-1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -292,9 +296,9 @@ func TestCreateRemindIdempotencySuccess(t *testing.T) {
 			reqBody := map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339), time.Now().Add(2 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   taskID,
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body, _ := json.Marshal(reqBody)
 
@@ -317,9 +321,9 @@ func TestCreateRemindIdempotencySuccess(t *testing.T) {
 			reqBody2 := map[string]any{
 				"times":     []string{time.Now().Add(3 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d2", "fcm_token": "t2"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t2"}},
 				"task_id":   taskID,
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body2, _ := json.Marshal(reqBody2)
 
@@ -384,9 +388,9 @@ func TestGetRemindsByTimeRangeHandlerSuccess(t *testing.T) {
 				reqBody := map[string]any{
 					"times":     []string{baseTime.Add(time.Duration(i) * time.Minute).Format(time.RFC3339)},
 					"user_id":   uuid.Must(uuid.NewV7()).String(),
-					"devices":   []map[string]string{{"device_id": "d-" + string(rune('a'+i)), "fcm_token": "t-" + string(rune('a'+i))}},
+					"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t-" + string(rune('a'+i))}},
 					"task_id":   uuid.Must(uuid.NewV7()).String(),
-					"task_type": "near",
+					"task_type": "TASK_TYPE_NEAR",
 				}
 				body, _ := json.Marshal(reqBody)
 
@@ -531,9 +535,9 @@ func TestUpdateThrottledHandlerSuccess(t *testing.T) {
 			createBody := map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body, _ := json.Marshal(createBody)
 
@@ -565,11 +569,11 @@ func TestUpdateThrottledHandlerSuccess(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, updateRec.Code)
 
-			var updateResp handler.RemindResponse
+			var updateResp protoRemindResponse
 
 			err = json.Unmarshal(updateRec.Body.Bytes(), &updateResp)
 			assert.NoError(t, err)
-			assert.True(t, updateResp.Throttled)
+			assert.True(t, updateResp.Remind.Throttled)
 		})
 	}
 }
@@ -648,9 +652,9 @@ func TestUpdateThrottledIdempotencySuccess(t *testing.T) {
 			createBody := map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body, _ := json.Marshal(createBody)
 
@@ -689,11 +693,11 @@ func TestUpdateThrottledIdempotencySuccess(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, updateRec2.Code)
 
-			var updateResp2 handler.RemindResponse
+			var updateResp2 protoRemindResponse
 
 			err = json.Unmarshal(updateRec2.Body.Bytes(), &updateResp2)
 			assert.NoError(t, err)
-			assert.True(t, updateResp2.Throttled)
+			assert.True(t, updateResp2.Remind.Throttled)
 		})
 	}
 }
@@ -724,9 +728,9 @@ func TestDeleteRemindHandlerSuccess(t *testing.T) {
 			createBody := map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body, _ := json.Marshal(createBody)
 
@@ -851,9 +855,9 @@ func TestDeleteRemindDoubleDeleteSuccess(t *testing.T) {
 			createBody := map[string]any{
 				"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 				"user_id":   uuid.Must(uuid.NewV7()).String(),
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   uuid.Must(uuid.NewV7()).String(),
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body, _ := json.Marshal(createBody)
 
@@ -927,9 +931,9 @@ func TestCancelRemindHandlerSuccess(t *testing.T) {
 			createBody := map[string]any{
 				"times":     times,
 				"user_id":   userID,
-				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 				"task_id":   taskID,
-				"task_type": "near",
+				"task_type": "TASK_TYPE_NEAR",
 			}
 			body, _ := json.Marshal(createBody)
 
@@ -1013,9 +1017,9 @@ func TestCancelRemindHandlerIdempotencySuccess(t *testing.T) {
 				createBody := map[string]any{
 					"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
 					"user_id":   userID,
-					"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+					"devices":   []map[string]string{{"device_id": uuid.Must(uuid.NewV7()).String(), "fcm_token": "t"}},
 					"task_id":   taskID,
-					"task_type": "near",
+					"task_type": "TASK_TYPE_NEAR",
 				}
 				body, _ := json.Marshal(createBody)
 
