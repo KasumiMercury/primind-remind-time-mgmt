@@ -680,3 +680,165 @@ func TestCreateRemindTransactionCommitSuccess(t *testing.T) {
 		})
 	}
 }
+
+func TestCancelRemindByTaskIDSuccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		timesCount int
+	}{
+		{
+			name:       "cancel single remind by task ID",
+			timesCount: 1,
+		},
+		{
+			name:       "cancel multiple reminds by task ID",
+			timesCount: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			useCase, cleanup := setupUseCaseTest(t)
+			defer cleanup()
+
+			taskID := generateUUIDv7String()
+			userID := generateUUIDv7String()
+
+			times := make([]time.Time, tt.timesCount)
+			for i := 0; i < tt.timesCount; i++ {
+				times[i] = time.Now().Add(time.Duration(i+1) * time.Hour)
+			}
+
+			createInput := app.CreateRemindInput{
+				Times:    times,
+				UserID:   userID,
+				Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
+				TaskID:   taskID,
+				TaskType: "near",
+			}
+			created, err := useCase.CreateRemind(context.Background(), createInput)
+			require.NoError(t, err)
+			require.Equal(t, tt.timesCount, created.Count)
+
+			input := app.CancelRemindByTaskIDInput{
+				TaskID: taskID,
+				UserID: userID,
+			}
+
+			err = useCase.CancelRemindByTaskID(context.Background(), input)
+
+			assert.NoError(t, err)
+
+			rangeInput := app.GetRemindsByTimeRangeInput{
+				Start: time.Now(),
+				End:   time.Now().Add(time.Duration(tt.timesCount+1) * time.Hour),
+			}
+			rangeOutput, err := useCase.GetRemindsByTimeRange(context.Background(), rangeInput)
+			require.NoError(t, err)
+			assert.Equal(t, 0, rangeOutput.Count)
+		})
+	}
+}
+
+func TestCancelRemindByTaskIDIdempotencySuccess(t *testing.T) {
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "double cancel succeeds (idempotent)",
+		},
+		{
+			name: "cancel non-existent task ID succeeds (idempotent)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			useCase, cleanup := setupUseCaseTest(t)
+			defer cleanup()
+
+			taskID := generateUUIDv7String()
+			userID := generateUUIDv7String()
+
+			if tt.name == "double cancel succeeds (idempotent)" {
+				createInput := app.CreateRemindInput{
+					Times:    []time.Time{time.Now().Add(1 * time.Hour)},
+					UserID:   userID,
+					Devices:  []app.DeviceInput{{DeviceID: "d", FCMToken: "t"}},
+					TaskID:   taskID,
+					TaskType: "near",
+				}
+				_, err := useCase.CreateRemind(context.Background(), createInput)
+				require.NoError(t, err)
+			}
+
+			input := app.CancelRemindByTaskIDInput{
+				TaskID: taskID,
+				UserID: userID,
+			}
+
+			err := useCase.CancelRemindByTaskID(context.Background(), input)
+			assert.NoError(t, err)
+
+			err = useCase.CancelRemindByTaskID(context.Background(), input)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestCancelRemindByTaskIDError(t *testing.T) {
+	tests := []struct {
+		name          string
+		taskID        string
+		userID        string
+		expectedField string
+	}{
+		{
+			name:          "invalid task_id format",
+			taskID:        "not-a-uuid",
+			userID:        generateUUIDv7String(),
+			expectedField: "task_id",
+		},
+		{
+			name:          "invalid task_id not UUIDv7",
+			taskID:        uuid.New().String(),
+			userID:        generateUUIDv7String(),
+			expectedField: "task_id",
+		},
+		{
+			name:          "invalid user_id format",
+			taskID:        generateUUIDv7String(),
+			userID:        "not-a-uuid",
+			expectedField: "user_id",
+		},
+		{
+			name:          "invalid user_id not UUIDv7",
+			taskID:        generateUUIDv7String(),
+			userID:        uuid.New().String(),
+			expectedField: "user_id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			useCase, cleanup := setupUseCaseTest(t)
+			defer cleanup()
+
+			input := app.CancelRemindByTaskIDInput{
+				TaskID: tt.taskID,
+				UserID: tt.userID,
+			}
+
+			err := useCase.CancelRemindByTaskID(context.Background(), input)
+
+			assert.Error(t, err)
+			assert.True(t, app.IsValidationError(err))
+
+			var validationErr *app.ValidationError
+			if errors.As(err, &validationErr) {
+				assert.Equal(t, tt.expectedField, validationErr.Field)
+			}
+		})
+	}
+}

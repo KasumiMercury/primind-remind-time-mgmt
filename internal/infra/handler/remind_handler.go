@@ -181,6 +181,46 @@ func (h *RemindHandler) DeleteRemind(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *RemindHandler) CancelRemind(c *gin.Context) {
+	slog.Info("handling cancel remind request",
+		"method", c.Request.Method,
+		"path", c.Request.URL.Path,
+	)
+
+	var req CancelRemindRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Warn("request validation failed",
+			"error", err,
+			"path", c.Request.URL.Path,
+		)
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "validation_error",
+			Message: err.Error(),
+			Field:   "",
+		})
+
+		return
+	}
+
+	input := app.CancelRemindByTaskIDInput{
+		TaskID: req.TaskID,
+		UserID: req.UserID,
+	}
+
+	err := h.useCase.CancelRemindByTaskID(c.Request.Context(), input)
+	if err != nil {
+		h.handleError(c, err)
+
+		return
+	}
+
+	slog.Info("reminds canceled successfully",
+		"task_id", req.TaskID,
+		"user_id", req.UserID,
+	)
+	c.Status(http.StatusNoContent)
+}
+
 func (h *RemindHandler) handleError(c *gin.Context, err error) {
 	var validationErr *app.ValidationError
 	if errors.As(err, &validationErr) {
@@ -217,5 +257,6 @@ func (h *RemindHandler) RegisterRoutes(router *gin.RouterGroup) {
 		reminds.GET("", h.GetRemindsByTimeRange)
 		reminds.POST("/:id/throttled", h.UpdateThrottled)
 		reminds.DELETE("/:id", h.DeleteRemind)
+		reminds.POST("/cancel", h.CancelRemind)
 	}
 }

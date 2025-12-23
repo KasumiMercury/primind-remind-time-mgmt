@@ -225,6 +225,29 @@ func (r *remindRepositoryImpl) Delete(ctx context.Context, id domain.RemindID) e
 	return nil
 }
 
+func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain.TaskID) (int64, error) {
+	slog.Debug("deleting reminds by task ID",
+		"task_id", taskID.String(),
+	)
+
+	result := r.db.WithContext(ctx).Where("task_id = ?", taskID.String()).Delete(&RemindModel{})
+	if result.Error != nil {
+		slog.Error("failed to delete reminds by task ID",
+			"task_id", taskID.String(),
+			"error", result.Error,
+		)
+
+		return 0, result.Error
+	}
+
+	slog.Debug("reminds deleted by task ID",
+		"task_id", taskID.String(),
+		"count", result.RowsAffected,
+	)
+
+	return result.RowsAffected, nil
+}
+
 func (r *remindRepositoryImpl) WithTx(ctx context.Context, fn func(repo domain.RemindRepository) error) error {
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {

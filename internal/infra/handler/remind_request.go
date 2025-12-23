@@ -23,3 +23,8 @@ type GetRemindsByTimeRangeRequest struct {
 type UpdateThrottledRequest struct {
 	Throttled bool `json:"throttled"`
 }
+
+type CancelRemindRequest struct {
+	TaskID string `json:"task_id" binding:"required,uuid"`
+	UserID string `json:"user_id" binding:"required,uuid"`
+}

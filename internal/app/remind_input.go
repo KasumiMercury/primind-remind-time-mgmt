@@ -28,3 +28,8 @@ type UpdateThrottledInput struct {
 type DeleteRemindInput struct {
 	ID string
 }
+
+type CancelRemindByTaskIDInput struct {
+	TaskID string
+	UserID string
+}
