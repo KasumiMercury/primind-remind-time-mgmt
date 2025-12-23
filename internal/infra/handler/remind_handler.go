@@ -37,6 +37,7 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 	if err != nil {
 		slog.Error("failed to read request body", "error", err)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
+
 		return
 	}
 
@@ -47,6 +48,7 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 			"path", c.Request.URL.Path,
 		)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
 		return
 	}
 
@@ -56,6 +58,7 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 			"path", c.Request.URL.Path,
 		)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
 		return
 	}
 
@@ -83,6 +86,7 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 	output, err := h.useCase.CreateRemind(c.Request.Context(), input)
 	if err != nil {
 		h.handleError(c, err)
+
 		return
 	}
 
@@ -106,6 +110,7 @@ func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
 			"path", c.Request.URL.Path,
 		)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
 		return
 	}
 
@@ -117,6 +122,7 @@ func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
 	output, err := h.useCase.GetRemindsByTimeRange(c.Request.Context(), input)
 	if err != nil {
 		h.handleError(c, err)
+
 		return
 	}
 
@@ -141,6 +147,7 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 	if err != nil {
 		slog.Error("failed to read request body", "error", err)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
+
 		return
 	}
 
@@ -151,6 +158,7 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 			"path", c.Request.URL.Path,
 		)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
 		return
 	}
 
@@ -162,6 +170,7 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 	output, err := h.useCase.UpdateThrottled(c.Request.Context(), input)
 	if err != nil {
 		h.handleError(c, err)
+
 		return
 	}
 
@@ -208,6 +217,7 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 	if err != nil {
 		slog.Error("failed to read request body", "error", err)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
+
 		return
 	}
 
@@ -218,6 +228,7 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 			"path", c.Request.URL.Path,
 		)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
 		return
 	}
 
@@ -227,6 +238,7 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 			"path", c.Request.URL.Path,
 		)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
 		return
 	}
 
@@ -238,6 +250,7 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 	err = h.useCase.CancelRemindByTaskID(c.Request.Context(), input)
 	if err != nil {
 		h.handleError(c, err)
+
 		return
 	}
 
@@ -252,11 +265,13 @@ func (h *RemindHandler) handleError(c *gin.Context, err error) {
 	var validationErr *app.ValidationError
 	if errors.As(err, &validationErr) {
 		respondProtoError(c, http.StatusBadRequest, "validation_error", validationErr.Message, validationErr.Field)
+
 		return
 	}
 
 	if errors.Is(err, app.ErrNotFound) {
 		respondProtoError(c, http.StatusNotFound, "not_found", "resource not found", "")
+
 		return
 	}
 
@@ -333,6 +348,7 @@ func taskTypeToString(t commonv1.TaskType) string {
 	if strings.HasPrefix(name, "TASK_TYPE_") {
 		return strings.ToLower(strings.TrimPrefix(name, "TASK_TYPE_"))
 	}
+
 	return strings.ToLower(name)
 }
 
@@ -341,5 +357,6 @@ func stringToTaskType(s string) commonv1.TaskType {
 	if v, ok := commonv1.TaskType_value[upper]; ok {
 		return commonv1.TaskType(v)
 	}
+
 	return commonv1.TaskType_TASK_TYPE_UNSPECIFIED
 }
