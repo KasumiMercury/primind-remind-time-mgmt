@@ -25,7 +25,7 @@ type DeviceOutput struct {
 
 type RemindsOutput struct {
 	Reminds []RemindOutput
-	Count   int
+	Count   int32
 }
 
 func FromEntity(remind *domain.Remind) RemindOutput {
@@ -58,6 +58,6 @@ func FromEntities(reminds []*domain.Remind) RemindsOutput {
 
 	return RemindsOutput{
 		Reminds: outputs,
-		Count:   len(outputs),
+		Count:   int32(len(outputs)), //nolint:gosec
 	}
 }

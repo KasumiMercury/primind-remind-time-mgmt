@@ -87,7 +87,7 @@ func TestCreateRemindSuccess(t *testing.T) {
 			output, err := useCase.CreateRemind(context.Background(), input)
 
 			assert.NoError(t, err)
-			assert.Equal(t, tt.timesCount, output.Count)
+			assert.Equal(t, int32(tt.timesCount), output.Count)
 			assert.Len(t, output.Reminds, tt.timesCount)
 
 			for _, remind := range output.Reminds {
@@ -128,7 +128,7 @@ func TestCreateRemindIdempotencySuccess(t *testing.T) {
 
 			output1, err := useCase.CreateRemind(context.Background(), input)
 			require.NoError(t, err)
-			require.Equal(t, 2, output1.Count)
+			require.Equal(t, int32(2), output1.Count)
 
 			input.UserID = generateUUIDv7String()
 			input.Times = []time.Time{time.Now().Add(3 * time.Hour)}
@@ -321,7 +321,7 @@ func TestGetRemindsByTimeRangeSuccess(t *testing.T) {
 			output, err := useCase.GetRemindsByTimeRange(context.Background(), input)
 
 			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedCount, output.Count)
+			assert.Equal(t, int32(tt.expectedCount), output.Count)
 			assert.Len(t, output.Reminds, tt.expectedCount)
 		})
 	}
@@ -364,7 +364,7 @@ func TestGetRemindsByTimeRangePartialSuccess(t *testing.T) {
 			output, err := useCase.GetRemindsByTimeRange(context.Background(), input)
 
 			assert.NoError(t, err)
-			assert.Equal(t, 2, output.Count)
+			assert.Equal(t, int32(2), output.Count)
 		})
 	}
 }
@@ -425,7 +425,7 @@ func TestUpdateThrottledSuccess(t *testing.T) {
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
-			require.Equal(t, 1, created.Count)
+			require.Equal(t, int32(1), created.Count)
 
 			input := app.UpdateThrottledInput{
 				ID:        created.Reminds[0].ID,
@@ -463,7 +463,7 @@ func TestUpdateThrottledIdempotencySuccess(t *testing.T) {
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
-			require.Equal(t, 1, created.Count)
+			require.Equal(t, int32(1), created.Count)
 
 			input := app.UpdateThrottledInput{ID: created.Reminds[0].ID, Throttled: true}
 
@@ -539,7 +539,7 @@ func TestDeleteRemindSuccess(t *testing.T) {
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
-			require.Equal(t, 1, created.Count)
+			require.Equal(t, int32(1), created.Count)
 
 			input := app.DeleteRemindInput{ID: created.Reminds[0].ID}
 
@@ -573,7 +573,7 @@ func TestDeleteRemindIdempotencySuccess(t *testing.T) {
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
-			require.Equal(t, 1, created.Count)
+			require.Equal(t, int32(1), created.Count)
 
 			input := app.DeleteRemindInput{ID: created.Reminds[0].ID}
 
@@ -668,7 +668,7 @@ func TestCreateRemindTransactionCommitSuccess(t *testing.T) {
 			output, err := useCase.CreateRemind(context.Background(), input)
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.timesCount, output.Count)
+			assert.Equal(t, int32(tt.timesCount), output.Count)
 
 			rangeInput := app.GetRemindsByTimeRangeInput{
 				Start: time.Now(),
@@ -676,7 +676,7 @@ func TestCreateRemindTransactionCommitSuccess(t *testing.T) {
 			}
 			rangeOutput, err := useCase.GetRemindsByTimeRange(context.Background(), rangeInput)
 			require.NoError(t, err)
-			assert.Equal(t, tt.timesCount, rangeOutput.Count)
+			assert.Equal(t, int32(tt.timesCount), rangeOutput.Count)
 		})
 	}
 }
@@ -718,7 +718,7 @@ func TestCancelRemindByTaskIDSuccess(t *testing.T) {
 			}
 			created, err := useCase.CreateRemind(context.Background(), createInput)
 			require.NoError(t, err)
-			require.Equal(t, tt.timesCount, created.Count)
+			require.Equal(t, int32(tt.timesCount), created.Count)
 
 			input := app.CancelRemindByTaskIDInput{
 				TaskID: taskID,
@@ -735,7 +735,7 @@ func TestCancelRemindByTaskIDSuccess(t *testing.T) {
 			}
 			rangeOutput, err := useCase.GetRemindsByTimeRange(context.Background(), rangeInput)
 			require.NoError(t, err)
-			assert.Equal(t, 0, rangeOutput.Count)
+			assert.Equal(t, int32(0), rangeOutput.Count)
 		})
 	}
 }

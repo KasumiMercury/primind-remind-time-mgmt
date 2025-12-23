@@ -2,12 +2,19 @@ package handler
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/app"
+	commonv1 "github.com/KasumiMercury/primind-remind-time-mgmt/internal/gen/common/v1"
+	remindv1 "github.com/KasumiMercury/primind-remind-time-mgmt/internal/gen/remind/v1"
+	pjson "github.com/KasumiMercury/primind-remind-time-mgmt/internal/proto"
 )
 
 type RemindHandler struct {
@@ -26,17 +33,31 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 		"path", c.Request.URL.Path,
 	)
 
-	var req CreateRemindRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		slog.Error("failed to read request body", "error", err)
+		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
+
+		return
+	}
+
+	var req remindv1.CreateRemindRequest
+	if err := pjson.Unmarshal(body, &req); err != nil {
+		slog.Warn("request unmarshal failed",
+			"error", err,
+			"path", c.Request.URL.Path,
+		)
+		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
+		return
+	}
+
+	if err := pjson.Validate(&req); err != nil {
 		slog.Warn("request validation failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "validation_error",
-			Message: err.Error(),
-			Field:   "",
-		})
+		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
 
 		return
 	}
@@ -44,17 +65,22 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 	devices := make([]app.DeviceInput, 0, len(req.Devices))
 	for _, d := range req.Devices {
 		devices = append(devices, app.DeviceInput{
-			DeviceID: d.DeviceID,
-			FCMToken: d.FCMToken,
+			DeviceID: d.DeviceId,
+			FCMToken: d.FcmToken,
 		})
 	}
 
+	times := make([]time.Time, 0, len(req.Times))
+	for _, t := range req.Times {
+		times = append(times, t.AsTime())
+	}
+
 	input := app.CreateRemindInput{
-		Times:    req.Times,
-		UserID:   req.UserID,
+		Times:    times,
+		UserID:   req.UserId,
 		Devices:  devices,
-		TaskID:   req.TaskID,
-		TaskType: req.TaskType,
+		TaskID:   req.TaskId,
+		TaskType: taskTypeToString(req.TaskType),
 	}
 
 	output, err := h.useCase.CreateRemind(c.Request.Context(), input)
@@ -65,10 +91,10 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 	}
 
 	slog.Info("reminds created successfully",
-		"task_id", req.TaskID,
+		"task_id", req.TaskId,
 		"count", output.Count,
 	)
-	c.JSON(http.StatusCreated, FromDTOs(output))
+	respondProtoReminds(c, http.StatusCreated, output)
 }
 
 func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
@@ -83,11 +109,7 @@ func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "validation_error",
-			Message: err.Error(),
-			Field:   "",
-		})
+		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
 
 		return
 	}
@@ -109,7 +131,7 @@ func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
 		"start", req.Start,
 		"end", req.End,
 	)
-	c.JSON(http.StatusOK, FromDTOs(output))
+	respondProtoReminds(c, http.StatusOK, output)
 }
 
 func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
@@ -121,17 +143,21 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 		"remind_id", id,
 	)
 
-	var req UpdateThrottledRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.Warn("request validation failed",
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		slog.Error("failed to read request body", "error", err)
+		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
+
+		return
+	}
+
+	var req remindv1.UpdateThrottledRequest
+	if err := pjson.Unmarshal(body, &req); err != nil {
+		slog.Warn("request unmarshal failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "validation_error",
-			Message: err.Error(),
-			Field:   "",
-		})
+		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
 
 		return
 	}
@@ -152,7 +178,7 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 		"remind_id", output.ID,
 		"throttled", output.Throttled,
 	)
-	c.JSON(http.StatusOK, FromDTO(output))
+	respondProtoRemind(c, http.StatusOK, output)
 }
 
 func (h *RemindHandler) DeleteRemind(c *gin.Context) {
@@ -187,27 +213,41 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 		"path", c.Request.URL.Path,
 	)
 
-	var req CancelRemindRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		slog.Error("failed to read request body", "error", err)
+		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
+
+		return
+	}
+
+	var req remindv1.CancelRemindRequest
+	if err := pjson.Unmarshal(body, &req); err != nil {
+		slog.Warn("request unmarshal failed",
+			"error", err,
+			"path", c.Request.URL.Path,
+		)
+		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
+
+		return
+	}
+
+	if err := pjson.Validate(&req); err != nil {
 		slog.Warn("request validation failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "validation_error",
-			Message: err.Error(),
-			Field:   "",
-		})
+		respondProtoError(c, http.StatusBadRequest, "validation_error", err.Error(), "")
 
 		return
 	}
 
 	input := app.CancelRemindByTaskIDInput{
-		TaskID: req.TaskID,
-		UserID: req.UserID,
+		TaskID: req.TaskId,
+		UserID: req.UserId,
 	}
 
-	err := h.useCase.CancelRemindByTaskID(c.Request.Context(), input)
+	err = h.useCase.CancelRemindByTaskID(c.Request.Context(), input)
 	if err != nil {
 		h.handleError(c, err)
 
@@ -215,8 +255,8 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 	}
 
 	slog.Info("reminds canceled successfully",
-		"task_id", req.TaskID,
-		"user_id", req.UserID,
+		"task_id", req.TaskId,
+		"user_id", req.UserId,
 	)
 	c.Status(http.StatusNoContent)
 }
@@ -224,30 +264,18 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 func (h *RemindHandler) handleError(c *gin.Context, err error) {
 	var validationErr *app.ValidationError
 	if errors.As(err, &validationErr) {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "validation_error",
-			Message: validationErr.Message,
-			Field:   validationErr.Field,
-		})
+		respondProtoError(c, http.StatusBadRequest, "validation_error", validationErr.Message, validationErr.Field)
 
 		return
 	}
 
 	if errors.Is(err, app.ErrNotFound) {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error:   "not_found",
-			Message: "resource not found",
-			Field:   "",
-		})
+		respondProtoError(c, http.StatusNotFound, "not_found", "resource not found", "")
 
 		return
 	}
 
-	c.JSON(http.StatusInternalServerError, ErrorResponse{
-		Error:   "internal_error",
-		Message: "an internal error occurred",
-		Field:   "",
-	})
+	respondProtoError(c, http.StatusInternalServerError, "internal_error", "an internal error occurred", "")
 }
 
 func (h *RemindHandler) RegisterRoutes(router *gin.RouterGroup) {
@@ -259,4 +287,97 @@ func (h *RemindHandler) RegisterRoutes(router *gin.RouterGroup) {
 		reminds.DELETE("/:id", h.DeleteRemind)
 		reminds.POST("/cancel", h.CancelRemind)
 	}
+}
+
+func respondProtoError(c *gin.Context, status int, errType, message, field string) {
+	resp := &remindv1.ErrorResponse{
+		Error:   errType,
+		Message: message,
+		Field:   field,
+	}
+
+	respBytes, err := pjson.Marshal(resp)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
+	c.Data(status, "application/json", respBytes)
+}
+
+func respondProtoReminds(c *gin.Context, status int, output app.RemindsOutput) {
+	reminds := make([]*remindv1.Remind, 0, len(output.Reminds))
+	for _, r := range output.Reminds {
+		reminds = append(reminds, toProtoRemind(r))
+	}
+
+	resp := &remindv1.RemindsResponse{
+		Reminds: reminds,
+		Count:   output.Count,
+	}
+
+	respBytes, err := pjson.Marshal(resp)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
+	c.Data(status, "application/json", respBytes)
+}
+
+func respondProtoRemind(c *gin.Context, status int, output app.RemindOutput) {
+	resp := &remindv1.RemindResponse{
+		Remind: toProtoRemind(output),
+	}
+
+	respBytes, err := pjson.Marshal(resp)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
+	c.Data(status, "application/json", respBytes)
+}
+
+func toProtoRemind(r app.RemindOutput) *remindv1.Remind {
+	devices := make([]*remindv1.Device, 0, len(r.Devices))
+	for _, d := range r.Devices {
+		devices = append(devices, &remindv1.Device{
+			DeviceId: d.DeviceID,
+			FcmToken: d.FCMToken,
+		})
+	}
+
+	return &remindv1.Remind{
+		Id:        r.ID,
+		Time:      timestamppb.New(r.Time),
+		UserId:    r.UserID,
+		Devices:   devices,
+		TaskId:    r.TaskID,
+		TaskType:  stringToTaskType(r.TaskType),
+		Throttled: r.Throttled,
+		CreatedAt: timestamppb.New(r.CreatedAt),
+		UpdatedAt: timestamppb.New(r.UpdatedAt),
+	}
+}
+
+func taskTypeToString(t commonv1.TaskType) string {
+	name := t.String()
+	if strings.HasPrefix(name, "TASK_TYPE_") {
+		return strings.ToLower(strings.TrimPrefix(name, "TASK_TYPE_"))
+	}
+
+	return strings.ToLower(name)
+}
+
+func stringToTaskType(s string) commonv1.TaskType {
+	upper := "TASK_TYPE_" + strings.ToUpper(s)
+	if v, ok := commonv1.TaskType_value[upper]; ok {
+		return commonv1.TaskType(v)
+	}
+
+	return commonv1.TaskType_TASK_TYPE_UNSPECIFIED
 }

@@ -163,12 +163,12 @@ func TestFromDTOsSuccess(t *testing.T) {
 
 			output := app.RemindsOutput{
 				Reminds: reminds,
-				Count:   tt.remindCount,
+				Count:   int32(tt.remindCount),
 			}
 
 			response := handler.FromDTOs(output)
 
-			assert.Equal(t, tt.remindCount, response.Count)
+			assert.Equal(t, int32(tt.remindCount), response.Count)
 			assert.Len(t, response.Reminds, tt.remindCount)
 		})
 	}
@@ -201,7 +201,7 @@ func TestFromDTOsPreservesOrderSuccess(t *testing.T) {
 
 			output := app.RemindsOutput{
 				Reminds: reminds,
-				Count:   tt.remindCount,
+				Count:   int32(tt.remindCount),
 			}
 
 			response := handler.FromDTOs(output)
@@ -256,12 +256,12 @@ func TestFromDTOsWithMixedThrottledSuccess(t *testing.T) {
 
 			output := app.RemindsOutput{
 				Reminds: reminds,
-				Count:   3,
+				Count:   int32(3),
 			}
 
 			response := handler.FromDTOs(output)
 
-			assert.Equal(t, 3, response.Count)
+			assert.Equal(t, int32(3), response.Count)
 			assert.True(t, response.Reminds[0].Throttled)
 			assert.False(t, response.Reminds[1].Throttled)
 			assert.True(t, response.Reminds[2].Throttled)
