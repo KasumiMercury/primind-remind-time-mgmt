@@ -28,6 +28,8 @@ linters:
                 - 'net/http\.Server'
                 - 'gorm\.io/gorm\.Config'
                 - '.*\.RemindModel'
+                - 'google\.golang\.org/protobuf/encoding/protojson\.MarshalOptions'
+                - 'google\.golang\.org/protobuf/encoding/protojson\.UnmarshalOptions'
         wsl_v5:
             allow-first-in-block: true
             allow-whole-block: false
