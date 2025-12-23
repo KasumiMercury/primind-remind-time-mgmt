@@ -886,3 +886,241 @@ func TestDeleteRemindDoubleDeleteSuccess(t *testing.T) {
 		})
 	}
 }
+
+func TestCancelRemindHandlerSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	router := setupTestRouter(t, testDB)
+
+	tests := []struct {
+		name       string
+		timesCount int
+	}{
+		{
+			name:       "cancel single remind by task ID",
+			timesCount: 1,
+		},
+		{
+			name:       "cancel multiple reminds by task ID",
+			timesCount: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			taskID := uuid.Must(uuid.NewV7()).String()
+			userID := uuid.Must(uuid.NewV7()).String()
+
+			times := make([]string, tt.timesCount)
+			for i := 0; i < tt.timesCount; i++ {
+				times[i] = time.Now().Add(time.Duration(i+1) * time.Hour).Format(time.RFC3339)
+			}
+
+			// Create reminds
+			createBody := map[string]any{
+				"times":     times,
+				"user_id":   userID,
+				"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+				"task_id":   taskID,
+				"task_type": "near",
+			}
+			body, _ := json.Marshal(createBody)
+
+			createReq := httptest.NewRequest(http.MethodPost, "/api/v1/reminds", bytes.NewReader(body))
+			createReq.Header.Set("Content-Type", "application/json")
+
+			createRec := httptest.NewRecorder()
+			router.ServeHTTP(createRec, createReq)
+			require.Equal(t, http.StatusCreated, createRec.Code)
+
+			var createResp handler.RemindsResponse
+
+			err := json.Unmarshal(createRec.Body.Bytes(), &createResp)
+			require.NoError(t, err)
+			require.Equal(t, tt.timesCount, createResp.Count)
+
+			// Cancel reminds by task ID
+			cancelBody := map[string]any{
+				"task_id": taskID,
+				"user_id": userID,
+			}
+			cancelBodyBytes, _ := json.Marshal(cancelBody)
+
+			cancelReq := httptest.NewRequest(http.MethodPost, "/api/v1/reminds/cancel", bytes.NewReader(cancelBodyBytes))
+			cancelReq.Header.Set("Content-Type", "application/json")
+
+			cancelRec := httptest.NewRecorder()
+
+			router.ServeHTTP(cancelRec, cancelReq)
+
+			assert.Equal(t, http.StatusNoContent, cancelRec.Code)
+
+			// Verify reminds are deleted
+			queryParams := url.Values{}
+			queryParams.Set("start", time.Now().Format(time.RFC3339))
+			queryParams.Set("end", time.Now().Add(time.Duration(tt.timesCount+1)*time.Hour).Format(time.RFC3339))
+
+			getReq := httptest.NewRequest(http.MethodGet, "/api/v1/reminds?"+queryParams.Encode(), nil)
+			getRec := httptest.NewRecorder()
+			router.ServeHTTP(getRec, getReq)
+
+			var getResp handler.RemindsResponse
+
+			err = json.Unmarshal(getRec.Body.Bytes(), &getResp)
+			require.NoError(t, err)
+			assert.Equal(t, 0, getResp.Count)
+		})
+	}
+}
+
+func TestCancelRemindHandlerIdempotencySuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	router := setupTestRouter(t, testDB)
+
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "double cancel is idempotent",
+		},
+		{
+			name: "cancel non-existent task ID is idempotent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			taskID := uuid.Must(uuid.NewV7()).String()
+			userID := uuid.Must(uuid.NewV7()).String()
+
+			if tt.name == "double cancel is idempotent" {
+				// Create a remind first
+				createBody := map[string]any{
+					"times":     []string{time.Now().Add(1 * time.Hour).Format(time.RFC3339)},
+					"user_id":   userID,
+					"devices":   []map[string]string{{"device_id": "d", "fcm_token": "t"}},
+					"task_id":   taskID,
+					"task_type": "near",
+				}
+				body, _ := json.Marshal(createBody)
+
+				createReq := httptest.NewRequest(http.MethodPost, "/api/v1/reminds", bytes.NewReader(body))
+				createReq.Header.Set("Content-Type", "application/json")
+
+				createRec := httptest.NewRecorder()
+				router.ServeHTTP(createRec, createReq)
+				require.Equal(t, http.StatusCreated, createRec.Code)
+			}
+
+			cancelBody := map[string]any{
+				"task_id": taskID,
+				"user_id": userID,
+			}
+			cancelBodyBytes, _ := json.Marshal(cancelBody)
+
+			// First cancel
+			cancelReq1 := httptest.NewRequest(http.MethodPost, "/api/v1/reminds/cancel", bytes.NewReader(cancelBodyBytes))
+			cancelReq1.Header.Set("Content-Type", "application/json")
+
+			cancelRec1 := httptest.NewRecorder()
+			router.ServeHTTP(cancelRec1, cancelReq1)
+			assert.Equal(t, http.StatusNoContent, cancelRec1.Code)
+
+			// Second cancel (should be idempotent)
+			cancelReq2 := httptest.NewRequest(http.MethodPost, "/api/v1/reminds/cancel", bytes.NewReader(cancelBodyBytes))
+			cancelReq2.Header.Set("Content-Type", "application/json")
+
+			cancelRec2 := httptest.NewRecorder()
+
+			router.ServeHTTP(cancelRec2, cancelReq2)
+
+			assert.Equal(t, http.StatusNoContent, cancelRec2.Code)
+		})
+	}
+}
+
+func TestCancelRemindHandlerError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	router := setupTestRouter(t, testDB)
+
+	tests := []struct {
+		name           string
+		requestBody    map[string]any
+		expectedStatus int
+	}{
+		{
+			name: "missing task_id",
+			requestBody: map[string]any{
+				"user_id": uuid.Must(uuid.NewV7()).String(),
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "missing user_id",
+			requestBody: map[string]any{
+				"task_id": uuid.Must(uuid.NewV7()).String(),
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid task_id format",
+			requestBody: map[string]any{
+				"task_id": "not-a-uuid",
+				"user_id": uuid.Must(uuid.NewV7()).String(),
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid user_id format",
+			requestBody: map[string]any{
+				"task_id": uuid.Must(uuid.NewV7()).String(),
+				"user_id": "not-a-uuid",
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			body, _ := json.Marshal(tt.requestBody)
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/reminds/cancel", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.expectedStatus, rec.Code)
+
+			var response handler.ErrorResponse
+
+			err := json.Unmarshal(rec.Body.Bytes(), &response)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, response.Error)
+		})
+	}
+}

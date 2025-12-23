@@ -241,3 +241,38 @@ func (uc *remindUseCaseImpl) DeleteRemind(ctx context.Context, input DeleteRemin
 
 	return nil
 }
+
+func (uc *remindUseCaseImpl) CancelRemindByTaskID(ctx context.Context, input CancelRemindByTaskIDInput) error {
+	slog.Debug("canceling reminds by task ID",
+		"task_id", input.TaskID,
+		"user_id", input.UserID,
+	)
+
+	taskID, err := domain.TaskIDFromString(input.TaskID)
+	if err != nil {
+		return NewValidationError("task_id", err.Error())
+	}
+
+	if _, err := domain.UserIDFromString(input.UserID); err != nil {
+		return NewValidationError("user_id", err.Error())
+	}
+
+	deletedCount, err := uc.repo.DeleteByTaskID(ctx, taskID)
+	if err != nil {
+		slog.Error("failed to cancel reminds by task ID",
+			"error", err,
+			"task_id", input.TaskID,
+			"user_id", input.UserID,
+		)
+
+		return fmt.Errorf("%w: %v", ErrInternalError, err)
+	}
+
+	slog.Info("reminds canceled by task ID",
+		"task_id", input.TaskID,
+		"user_id", input.UserID,
+		"deleted_count", deletedCount,
+	)
+
+	return nil
+}

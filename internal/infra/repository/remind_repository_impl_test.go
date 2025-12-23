@@ -909,3 +909,105 @@ func TestWithTxRollbackOnSaveError(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteByTaskIDSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	repo := repository.NewRemindRepository(testDB.DB)
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		remindsToSave int
+	}{
+		{
+			name:          "delete single remind by task ID",
+			remindsToSave: 1,
+		},
+		{
+			name:          "delete multiple reminds by task ID",
+			remindsToSave: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			userID, err := domain.UserIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+			taskID, err := domain.TaskIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+
+			d, err := domain.NewDevice("device", "token")
+			require.NoError(t, err)
+			devices, err := domain.NewDevices([]domain.Device{d})
+			require.NoError(t, err)
+
+			for i := 0; i < tt.remindsToSave; i++ {
+				remindTime := time.Now().Add(time.Duration(i+1) * time.Hour).Truncate(time.Microsecond)
+				remind := domain.Reconstitute(
+					domain.NewRemindID(),
+					remindTime,
+					userID,
+					devices,
+					taskID,
+					domain.TypeNear,
+					false,
+					time.Now().Add(-1*time.Hour),
+					time.Now(),
+				)
+				err = repo.Save(ctx, remind)
+				require.NoError(t, err)
+			}
+
+			deletedCount, err := repo.DeleteByTaskID(ctx, taskID)
+
+			assert.NoError(t, err)
+			assert.Equal(t, int64(tt.remindsToSave), deletedCount)
+
+			found, err := repo.FindByTaskID(ctx, taskID)
+			assert.NoError(t, err)
+			assert.Empty(t, found)
+		})
+	}
+}
+
+func TestDeleteByTaskIDNoRecords(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	testDB := testutil.SetupTestDB(t)
+	defer testDB.TeardownTestDB(t)
+
+	repo := repository.NewRemindRepository(testDB.DB)
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "delete non-existent task ID returns zero count without error (idempotency)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testDB.CleanTable(t)
+
+			nonExistentTaskID, err := domain.TaskIDFromUUID(uuid.Must(uuid.NewV7()))
+			require.NoError(t, err)
+
+			deletedCount, err := repo.DeleteByTaskID(ctx, nonExistentTaskID)
+
+			assert.NoError(t, err)
+			assert.Equal(t, int64(0), deletedCount)
+		})
+	}
+}

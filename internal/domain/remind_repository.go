@@ -17,5 +17,6 @@ type RemindRepository interface {
 	FindByTimeRange(ctx context.Context, timeRange TimeRange) ([]*Remind, error)
 	Update(ctx context.Context, remind *Remind) error
 	Delete(ctx context.Context, id RemindID) error
+	DeleteByTaskID(ctx context.Context, taskID TaskID) (int64, error)
 	WithTx(ctx context.Context, fn func(repo RemindRepository) error) error
 }
