@@ -175,7 +175,7 @@ func TestFromEntitiesSuccess(t *testing.T) {
 
 			output := app.FromEntities(reminds)
 
-			assert.Equal(t, tt.remindCount, output.Count)
+			assert.Equal(t, int32(tt.remindCount), output.Count)
 			assert.Len(t, output.Reminds, tt.remindCount)
 		})
 	}
@@ -227,7 +227,7 @@ func TestFromEntitiesWithMixedThrottledSuccess(t *testing.T) {
 
 			output := app.FromEntities(reminds)
 
-			assert.Equal(t, 3, output.Count)
+			assert.Equal(t, int32(3), output.Count)
 			assert.True(t, output.Reminds[0].Throttled)
 			assert.False(t, output.Reminds[1].Throttled)
 			assert.True(t, output.Reminds[2].Throttled)

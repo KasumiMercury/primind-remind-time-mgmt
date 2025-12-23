@@ -25,7 +25,7 @@ type DeviceResponse struct {
 
 type RemindsResponse struct {
 	Reminds []RemindResponse `json:"reminds"`
-	Count   int              `json:"count"`
+	Count   int32            `json:"count"`
 }
 
 type ErrorResponse struct {

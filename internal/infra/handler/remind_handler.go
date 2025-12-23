@@ -295,7 +295,14 @@ func respondProtoError(c *gin.Context, status int, errType, message, field strin
 		Message: message,
 		Field:   field,
 	}
-	respBytes, _ := pjson.Marshal(resp)
+
+	respBytes, err := pjson.Marshal(resp)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
 	c.Data(status, "application/json", respBytes)
 }
 
@@ -307,9 +314,16 @@ func respondProtoReminds(c *gin.Context, status int, output app.RemindsOutput) {
 
 	resp := &remindv1.RemindsResponse{
 		Reminds: reminds,
-		Count:   int32(output.Count),
+		Count:   output.Count,
 	}
-	respBytes, _ := pjson.Marshal(resp)
+
+	respBytes, err := pjson.Marshal(resp)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
 	c.Data(status, "application/json", respBytes)
 }
 
@@ -317,7 +331,14 @@ func respondProtoRemind(c *gin.Context, status int, output app.RemindOutput) {
 	resp := &remindv1.RemindResponse{
 		Remind: toProtoRemind(output),
 	}
-	respBytes, _ := pjson.Marshal(resp)
+
+	respBytes, err := pjson.Marshal(resp)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
 	c.Data(status, "application/json", respBytes)
 }
 

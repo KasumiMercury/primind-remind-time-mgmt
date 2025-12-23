@@ -107,7 +107,7 @@ func TestCreateRemindHandlerSuccess(t *testing.T) {
 
 			err := json.Unmarshal(rec.Body.Bytes(), &response)
 			assert.NoError(t, err)
-			assert.Equal(t, tt.timesCount, response.Count)
+			assert.Equal(t, int32(tt.timesCount), response.Count)
 			assert.Len(t, response.Reminds, tt.timesCount)
 
 			for _, remind := range response.Reminds {
@@ -311,7 +311,7 @@ func TestCreateRemindIdempotencySuccess(t *testing.T) {
 
 			err := json.Unmarshal(rec1.Body.Bytes(), &response1)
 			require.NoError(t, err)
-			require.Equal(t, 2, response1.Count)
+			require.Equal(t, int32(2), response1.Count)
 
 			// Second request with same task_id (different times)
 			reqBody2 := map[string]any{
@@ -415,7 +415,7 @@ func TestGetRemindsByTimeRangeHandlerSuccess(t *testing.T) {
 
 			err := json.Unmarshal(rec.Body.Bytes(), &response)
 			assert.NoError(t, err)
-			assert.Equal(t, tt.remindsToSave, response.Count)
+			assert.Equal(t, int32(tt.remindsToSave), response.Count)
 			assert.Len(t, response.Reminds, tt.remindsToSave)
 		})
 	}
@@ -548,7 +548,7 @@ func TestUpdateThrottledHandlerSuccess(t *testing.T) {
 
 			err := json.Unmarshal(createRec.Body.Bytes(), &createResp)
 			require.NoError(t, err)
-			require.Equal(t, 1, createResp.Count)
+			require.Equal(t, int32(1), createResp.Count)
 
 			// Update throttled
 			updateBody := map[string]any{
@@ -665,7 +665,7 @@ func TestUpdateThrottledIdempotencySuccess(t *testing.T) {
 
 			err := json.Unmarshal(createRec.Body.Bytes(), &createResp)
 			require.NoError(t, err)
-			require.Equal(t, 1, createResp.Count)
+			require.Equal(t, int32(1), createResp.Count)
 
 			updateBody := map[string]any{
 				"throttled": true,
@@ -741,7 +741,7 @@ func TestDeleteRemindHandlerSuccess(t *testing.T) {
 
 			err := json.Unmarshal(createRec.Body.Bytes(), &createResp)
 			require.NoError(t, err)
-			require.Equal(t, 1, createResp.Count)
+			require.Equal(t, int32(1), createResp.Count)
 
 			// Delete the remind
 			deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/reminds/"+createResp.Reminds[0].ID, nil)
@@ -868,7 +868,7 @@ func TestDeleteRemindDoubleDeleteSuccess(t *testing.T) {
 
 			err := json.Unmarshal(createRec.Body.Bytes(), &createResp)
 			require.NoError(t, err)
-			require.Equal(t, 1, createResp.Count)
+			require.Equal(t, int32(1), createResp.Count)
 
 			// First delete
 			deleteReq1 := httptest.NewRequest(http.MethodDelete, "/api/v1/reminds/"+createResp.Reminds[0].ID, nil)
@@ -944,7 +944,7 @@ func TestCancelRemindHandlerSuccess(t *testing.T) {
 
 			err := json.Unmarshal(createRec.Body.Bytes(), &createResp)
 			require.NoError(t, err)
-			require.Equal(t, tt.timesCount, createResp.Count)
+			require.Equal(t, int32(tt.timesCount), createResp.Count)
 
 			// Cancel reminds by task ID
 			cancelBody := map[string]any{
@@ -975,7 +975,7 @@ func TestCancelRemindHandlerSuccess(t *testing.T) {
 
 			err = json.Unmarshal(getRec.Body.Bytes(), &getResp)
 			require.NoError(t, err)
-			assert.Equal(t, 0, getResp.Count)
+			assert.Equal(t, int32(0), getResp.Count)
 		})
 	}
 }
