@@ -1,4 +1,4 @@
-//go:build !gcloud
+//go:build gcloud
 
 package main
 
@@ -26,51 +26,55 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load configuration", "error", err)
-		os.Exit(1)
+		return 1
 	}
 
 	setupLogger(cfg.Log)
 
 	if err := cfg.PubSub.Validate(); err != nil {
 		slog.Error("pubsub configuration error", "error", err)
-		os.Exit(1)
+		return 1
 	}
+
+	ctx := context.Background()
 
 	db, err := initDatabase(cfg.Database)
 	if err != nil {
 		slog.Error("failed to initialize database", "error", err)
-		os.Exit(1)
+		return 1
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
 		slog.Error("failed to get underlying sql.DB", "error", err)
-		os.Exit(1)
+		return 1
 	}
 
-	// Initialize publisher
-	var publisher pubsub.Publisher
-
-	if cfg.PubSub.NatsURL != "" {
-		ctx := context.Background()
-
-		publisher, err = pubsub.NewNATSPublisherWithStream(ctx, pubsub.NATSPublisherConfig{
-			URL: cfg.PubSub.NatsURL,
-		})
-		if err != nil {
-			slog.Error("failed to create NATS publisher", "error", err)
-			os.Exit(1)
+	// Initialize Google Cloud Pub/Sub publisher
+	publisher, err := pubsub.NewGCloudPublisher(ctx, pubsub.GCloudPublisherConfig{
+		ProjectID: cfg.PubSub.GCloudProjectID,
+	})
+	if err != nil {
+		slog.Error("failed to create Google Cloud publisher", "error", err)
+		return 1
+	}
+	defer func() {
+		if err := publisher.Close(); err != nil {
+			slog.Warn("failed to close publisher", "error", err)
 		}
-
-		slog.Info("NATS publisher initialized", "url", cfg.PubSub.NatsURL)
-	} else {
-		slog.Warn("NATS_URL not set, event publishing disabled")
-	}
+	}()
+	slog.Info("Google Cloud Pub/Sub publisher initialized",
+		"project_id", cfg.PubSub.GCloudProjectID,
+	)
 
 	remindRepo := repository.NewRemindRepository(db)
 	remindUseCase := app.NewRemindUseCase(remindRepo, publisher)
@@ -86,63 +90,40 @@ func main() {
 	}
 
 	serverErr := make(chan error, 1)
-
 	go func() {
 		slog.Info("starting server", "address", cfg.Server.Address())
-
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErr <- err
-		}
-
-		close(serverErr)
+		serverErr <- srv.ListenAndServe()
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case err := <-serverErr:
-		if err != nil {
-			slog.Error("server failed to start", "error", err)
-
-			if publisher != nil {
-				if closeErr := publisher.Close(); closeErr != nil {
-					slog.Error("failed to close publisher", "error", closeErr)
-				}
-			}
-
-			if closeErr := sqlDB.Close(); closeErr != nil {
-				slog.Error("failed to close database connection", "error", closeErr)
-			}
-
-			os.Exit(1)
-		}
 	case sig := <-quit:
-		slog.Info("received shutdown signal", "signal", sig)
-	}
+		slog.Info("shutdown signal received", "signal", sig.String())
 
-	slog.Info("shutting down server")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("server forced to shutdown", "error", err)
-		os.Exit(1)
-	}
-
-	// Close publisher
-	if publisher != nil {
-		if err := publisher.Close(); err != nil {
-			slog.Error("failed to close publisher", "error", err)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			slog.Error("failed to shutdown server", "error", err)
+			return 1
 		}
-	}
 
-	if err := sqlDB.Close(); err != nil {
-		slog.Error("failed to close database connection", "error", err)
-	}
+		if err := sqlDB.Close(); err != nil {
+			slog.Error("failed to close database connection", "error", err)
+		}
 
-	slog.Info("server exited properly")
+		slog.Info("server exited properly")
+		return 0
+
+	case err := <-serverErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return 0
+		}
+		slog.Error("server exited with error", "error", err)
+		return 1
+	}
 }
 
 func initDatabase(cfg config.DatabaseConfig) (*gorm.DB, error) {
