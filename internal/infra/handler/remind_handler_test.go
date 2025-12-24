@@ -26,7 +26,7 @@ func setupTestRouter(t *testing.T, testDB *testutil.TestDB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
 	repo := repository.NewRemindRepository(testDB.DB)
-	useCase := app.NewRemindUseCase(repo)
+	useCase := app.NewRemindUseCase(repo, nil)
 	h := handler.NewRemindHandler(useCase)
 
 	router := gin.New()
