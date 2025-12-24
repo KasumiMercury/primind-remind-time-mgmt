@@ -877,6 +877,7 @@ func TestCancelRemindByTaskID_PublishesEvent(t *testing.T) {
 			assert.NotEmpty(t, req.GetUserId())
 			assert.Greater(t, req.GetDeletedCount(), int64(0))
 			assert.NotNil(t, req.GetCancelledAt())
+
 			return nil
 		}).
 		Times(1)
