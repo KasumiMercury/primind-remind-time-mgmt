@@ -9,8 +9,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/app"
+	throttlev1 "github.com/KasumiMercury/primind-remind-time-mgmt/internal/gen/throttle/v1"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/pubsub"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/repository"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/testutil"
 )
@@ -23,7 +26,7 @@ func setupUseCaseTest(t *testing.T) (app.RemindUseCase, func()) {
 	t.Helper()
 	testDB := testutil.SetupTestDB(t)
 	repo := repository.NewRemindRepository(testDB.DB)
-	useCase := app.NewRemindUseCase(repo)
+	useCase := app.NewRemindUseCase(repo, nil)
 
 	return useCase, func() {
 		testDB.CleanTable(t)
@@ -841,4 +844,163 @@ func TestCancelRemindByTaskIDError(t *testing.T) {
 			}
 		})
 	}
+}
+
+// setupUseCaseTestWithPublisher creates a use case with a custom publisher for testing.
+func setupUseCaseTestWithPublisher(t *testing.T, publisher pubsub.Publisher) (app.RemindUseCase, func()) {
+	t.Helper()
+	testDB := testutil.SetupTestDB(t)
+	repo := repository.NewRemindRepository(testDB.DB)
+	useCase := app.NewRemindUseCase(repo, publisher)
+
+	return useCase, func() {
+		testDB.CleanTable(t)
+		testDB.TeardownTestDB(t)
+	}
+}
+
+func TestCancelRemindByTaskID_PublishesEvent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPublisher := pubsub.NewMockPublisher(ctrl)
+
+	// Expect PublishRemindCancelled to be called with matching request
+	mockPublisher.EXPECT().
+		PublishRemindCancelled(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, req *throttlev1.CancelRemindRequest) error {
+			assert.NotEmpty(t, req.GetTaskId())
+			assert.NotEmpty(t, req.GetUserId())
+			assert.Greater(t, req.GetDeletedCount(), int64(0))
+			assert.NotNil(t, req.GetCancelledAt())
+			return nil
+		}).
+		Times(1)
+
+	useCase, cleanup := setupUseCaseTestWithPublisher(t, mockPublisher)
+	defer cleanup()
+
+	// Create a remind first
+	taskID := generateUUIDv7String()
+	userID := generateUUIDv7String()
+
+	createInput := app.CreateRemindInput{
+		Times:    []time.Time{time.Now().Add(1 * time.Hour)},
+		UserID:   userID,
+		Devices:  []app.DeviceInput{{DeviceID: "device-a", FCMToken: "token-a"}},
+		TaskID:   taskID,
+		TaskType: "near",
+	}
+	_, err := useCase.CreateRemind(context.Background(), createInput)
+	require.NoError(t, err)
+
+	// Cancel the remind - should trigger publish
+	input := app.CancelRemindByTaskIDInput{
+		TaskID: taskID,
+		UserID: userID,
+	}
+	err = useCase.CancelRemindByTaskID(context.Background(), input)
+	assert.NoError(t, err)
+}
+
+func TestCancelRemindByTaskID_PublishError_DoesNotFailOperation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPublisher := pubsub.NewMockPublisher(ctrl)
+
+	mockPublisher.EXPECT().
+		PublishRemindCancelled(gomock.Any(), gomock.Any()).
+		Return(errors.New("publish failed")).
+		Times(1)
+
+	useCase, cleanup := setupUseCaseTestWithPublisher(t, mockPublisher)
+	defer cleanup()
+
+	// Create a remind first
+	taskID := generateUUIDv7String()
+	userID := generateUUIDv7String()
+
+	createInput := app.CreateRemindInput{
+		Times:    []time.Time{time.Now().Add(1 * time.Hour)},
+		UserID:   userID,
+		Devices:  []app.DeviceInput{{DeviceID: "device-a", FCMToken: "token-a"}},
+		TaskID:   taskID,
+		TaskType: "near",
+	}
+	_, err := useCase.CreateRemind(context.Background(), createInput)
+	require.NoError(t, err)
+
+	// Even though publish fails, operation should succeed
+	input := app.CancelRemindByTaskIDInput{
+		TaskID: taskID,
+		UserID: userID,
+	}
+	err = useCase.CancelRemindByTaskID(context.Background(), input)
+	assert.NoError(t, err)
+}
+
+func TestCancelRemindByTaskID_NoRemindsDeleted_DoesNotPublish(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPublisher := pubsub.NewMockPublisher(ctrl)
+
+	// PublishRemindCancelled should NOT be called when deletedCount = 0
+	mockPublisher.EXPECT().
+		PublishRemindCancelled(gomock.Any(), gomock.Any()).
+		Times(0)
+
+	useCase, cleanup := setupUseCaseTestWithPublisher(t, mockPublisher)
+	defer cleanup()
+
+	// Cancel non-existent reminds
+	input := app.CancelRemindByTaskIDInput{
+		TaskID: generateUUIDv7String(),
+		UserID: generateUUIDv7String(),
+	}
+	err := useCase.CancelRemindByTaskID(context.Background(), input)
+	assert.NoError(t, err)
+}
+
+func TestCancelRemindByTaskID_NilPublisher_Succeeds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	// This tests the existing behavior with nil publisher
+	useCase, cleanup := setupUseCaseTest(t)
+	defer cleanup()
+
+	taskID := generateUUIDv7String()
+	userID := generateUUIDv7String()
+
+	createInput := app.CreateRemindInput{
+		Times:    []time.Time{time.Now().Add(1 * time.Hour)},
+		UserID:   userID,
+		Devices:  []app.DeviceInput{{DeviceID: "device-a", FCMToken: "token-a"}},
+		TaskID:   taskID,
+		TaskType: "near",
+	}
+	_, err := useCase.CreateRemind(context.Background(), createInput)
+	require.NoError(t, err)
+
+	input := app.CancelRemindByTaskIDInput{
+		TaskID: taskID,
+		UserID: userID,
+	}
+	err = useCase.CancelRemindByTaskID(context.Background(), input)
+	assert.NoError(t, err)
 }
