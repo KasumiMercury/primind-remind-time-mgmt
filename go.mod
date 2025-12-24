@@ -7,6 +7,7 @@ require (
 	buf.build/go/protovalidate v1.1.0
 	github.com/ThreeDotsLabs/watermill v1.5.1
 	github.com/ThreeDotsLabs/watermill-googlecloud v1.2.6
+	github.com/ThreeDotsLabs/watermill-googlecloud/v2 v2.0.0
 	github.com/ThreeDotsLabs/watermill-nats/v2 v2.1.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
