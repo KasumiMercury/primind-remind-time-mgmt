@@ -27,36 +27,6 @@ type NATSPublisherConfig struct {
 	URL string
 }
 
-func NewNATSPublisher(cfg NATSPublisherConfig) (*NATSPublisher, error) {
-	logger := watermill.NewSlogLogger(slog.Default())
-
-	publisher, err := nats.NewPublisher(
-		nats.PublisherConfig{
-			URL:         cfg.URL,
-			NatsOptions: []nc.Option{nc.Timeout(10 * time.Second)},
-			JetStream: nats.JetStreamConfig{
-				Disabled:       false,
-				AutoProvision:  true,
-				ConnectOptions: nil,
-				PublishOptions: nil,
-				TrackMsgId:     false,
-				AckAsync:       false,
-				DurablePrefix:  "",
-			},
-			Marshaler: &nats.NATSMarshaler{},
-		},
-		logger,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create NATS publisher: %w", err)
-	}
-
-	return &NATSPublisher{
-		publisher: publisher,
-		logger:    logger,
-	}, nil
-}
-
 func NewNATSPublisherWithStream(ctx context.Context, cfg NATSPublisherConfig) (*NATSPublisher, error) {
 	logger := watermill.NewSlogLogger(slog.Default())
 
