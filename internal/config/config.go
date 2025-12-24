@@ -11,6 +11,12 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Log      LogConfig
+	PubSub   PubSubConfig
+}
+
+type PubSubConfig struct {
+	NatsURL         string
+	GCloudProjectID string
 }
 
 type LogConfig struct {
@@ -82,6 +88,10 @@ func Load() (*Config, error) {
 		},
 		Log: LogConfig{
 			Level: getEnv("LOG_LEVEL", "info"),
+		},
+		PubSub: PubSubConfig{
+			NatsURL:         os.Getenv("NATS_URL"),
+			GCloudProjectID: os.Getenv("GCLOUD_PROJECT_ID"),
 		},
 	}, nil
 }
