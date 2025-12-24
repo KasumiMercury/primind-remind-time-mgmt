@@ -4,6 +4,7 @@ inputs:
     paths:
       - proto/common/v1
       - proto/remind/v1
+      - proto/throttle/v1
 plugins:
   - local: protoc-gen-go
     out: internal/gen
