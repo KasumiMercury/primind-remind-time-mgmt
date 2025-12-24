@@ -30,6 +30,9 @@ linters:
                 - '.*\.RemindModel'
                 - 'google\.golang\.org/protobuf/encoding/protojson\.MarshalOptions'
                 - 'google\.golang\.org/protobuf/encoding/protojson\.UnmarshalOptions'
+                - 'github\.com/ThreeDotsLabs/watermill-nats/v2/pkg/nats\.PublisherConfig'
+                - 'github\.com/ThreeDotsLabs/watermill-nats/v2/pkg/nats\.JetStreamConfig'
+                - 'github\.com/nats-io/nats\.go/jetstream\.StreamConfig'
         wsl_v5:
             allow-first-in-block: true
             allow-whole-block: false

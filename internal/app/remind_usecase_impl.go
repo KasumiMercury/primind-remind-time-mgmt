@@ -6,16 +6,22 @@ import (
 	"fmt"
 	"log/slog"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/domain"
+	throttlev1 "github.com/KasumiMercury/primind-remind-time-mgmt/internal/gen/throttle/v1"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/pubsub"
 )
 
 type remindUseCaseImpl struct {
-	repo domain.RemindRepository
+	repo      domain.RemindRepository
+	publisher pubsub.Publisher
 }
 
-func NewRemindUseCase(repo domain.RemindRepository) RemindUseCase {
+func NewRemindUseCase(repo domain.RemindRepository, publisher pubsub.Publisher) RemindUseCase {
 	return &remindUseCaseImpl{
-		repo: repo,
+		repo:      repo,
+		publisher: publisher,
 	}
 }
 
@@ -266,6 +272,21 @@ func (uc *remindUseCaseImpl) CancelRemindByTaskID(ctx context.Context, input Can
 		)
 
 		return fmt.Errorf("%w: %v", ErrInternalError, err)
+	}
+
+	if uc.publisher != nil && deletedCount > 0 {
+		req := &throttlev1.CancelRemindRequest{
+			TaskId:       input.TaskID,
+			UserId:       input.UserID,
+			DeletedCount: deletedCount,
+			CancelledAt:  timestamppb.Now(),
+		}
+		if pubErr := uc.publisher.PublishRemindCancelled(ctx, req); pubErr != nil {
+			slog.Error("failed to publish remind cancelled event",
+				"task_id", input.TaskID,
+				"error", pubErr.Error(),
+			)
+		}
 	}
 
 	slog.Info("reminds canceled by task ID",
