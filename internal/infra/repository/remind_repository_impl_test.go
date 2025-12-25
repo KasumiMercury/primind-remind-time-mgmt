@@ -966,10 +966,10 @@ func TestDeleteByTaskIDSuccess(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			deletedCount, err := repo.DeleteByTaskID(ctx, taskID)
+			deletedIDs, err := repo.DeleteByTaskID(ctx, taskID)
 
 			assert.NoError(t, err)
-			assert.Equal(t, int64(tt.remindsToSave), deletedCount)
+			assert.Len(t, deletedIDs, tt.remindsToSave)
 
 			found, err := repo.FindByTaskID(ctx, taskID)
 			assert.NoError(t, err)
@@ -1004,10 +1004,10 @@ func TestDeleteByTaskIDNoRecords(t *testing.T) {
 			nonExistentTaskID, err := domain.TaskIDFromUUID(uuid.Must(uuid.NewV7()))
 			require.NoError(t, err)
 
-			deletedCount, err := repo.DeleteByTaskID(ctx, nonExistentTaskID)
+			deletedIDs, err := repo.DeleteByTaskID(ctx, nonExistentTaskID)
 
 			assert.NoError(t, err)
-			assert.Equal(t, int64(0), deletedCount)
+			assert.Empty(t, deletedIDs)
 		})
 	}
 }
