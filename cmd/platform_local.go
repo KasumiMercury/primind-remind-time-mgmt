@@ -14,7 +14,7 @@ func initPublisher(ctx context.Context, cfg *config.Config) (pubsub.Publisher, e
 	if cfg.PubSub.NatsURL == "" {
 		slog.Warn("NATS_URL not set, event publishing disabled")
 
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	publisher, err := pubsub.NewNATSPublisherWithStream(ctx, pubsub.NATSPublisherConfig{
