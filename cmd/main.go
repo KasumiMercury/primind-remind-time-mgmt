@@ -1,5 +1,3 @@
-//go:build !gcloud
-
 package main
 
 import (
@@ -21,63 +19,78 @@ import (
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/app"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/config"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/handler"
-	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/pubsub"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/repository"
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
+	// Initialize default logger for early logging
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
+	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load configuration", "error", err)
-		os.Exit(1)
+		return 1
 	}
 
+	// Setup logger with configured level
 	setupLogger(cfg.Log)
 
+	// Validate pubsub configuration
 	if err := cfg.PubSub.Validate(); err != nil {
 		slog.Error("pubsub configuration error", "error", err)
-		os.Exit(1)
+		return 1
 	}
 
+	// Create cancellable context for cleanup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Initialize database
 	db, err := initDatabase(cfg.Database)
 	if err != nil {
 		slog.Error("failed to initialize database", "error", err)
-		os.Exit(1)
+		return 1
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
 		slog.Error("failed to get underlying sql.DB", "error", err)
-		os.Exit(1)
+		return 1
 	}
+	defer func() {
+		if err := sqlDB.Close(); err != nil {
+			slog.Error("failed to close database connection", "error", err)
+		}
+	}()
 
 	// Initialize publisher
-	var publisher pubsub.Publisher
-
-	if cfg.PubSub.NatsURL != "" {
-		ctx := context.Background()
-
-		publisher, err = pubsub.NewNATSPublisherWithStream(ctx, pubsub.NATSPublisherConfig{
-			URL: cfg.PubSub.NatsURL,
-		})
-		if err != nil {
-			slog.Error("failed to create NATS publisher", "error", err)
-			os.Exit(1)
-		}
-
-		slog.Info("NATS publisher initialized", "url", cfg.PubSub.NatsURL)
-	} else {
-		slog.Warn("NATS_URL not set, event publishing disabled")
+	publisher, err := initPublisher(ctx, cfg)
+	if err != nil {
+		slog.Error("failed to create publisher", "error", err)
+		return 1
+	}
+	if publisher != nil {
+		defer func() {
+			if err := publisher.Close(); err != nil {
+				slog.Warn("failed to close publisher", "error", err)
+			}
+		}()
 	}
 
+	// Create repository, use case, and handler
 	remindRepo := repository.NewRemindRepository(db)
 	remindUseCase := app.NewRemindUseCase(remindRepo, publisher)
 	remindHandler := handler.NewRemindHandler(remindUseCase)
 
+	// Setup router
 	router := setupRouter(remindHandler)
 
+	// Create HTTP server
 	srv := &http.Server{
 		Addr:         cfg.Server.Address(),
 		Handler:      router,
@@ -85,64 +98,40 @@ func main() {
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
+	// Start server in goroutine
 	serverErr := make(chan error, 1)
-
 	go func() {
 		slog.Info("starting server", "address", cfg.Server.Address())
-
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErr <- err
-		}
-
-		close(serverErr)
+		serverErr <- srv.ListenAndServe()
 	}()
 
+	// Wait for shutdown signal or server error
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case err := <-serverErr:
-		if err != nil {
-			slog.Error("server failed to start", "error", err)
-
-			if publisher != nil {
-				if closeErr := publisher.Close(); closeErr != nil {
-					slog.Error("failed to close publisher", "error", closeErr)
-				}
-			}
-
-			if closeErr := sqlDB.Close(); closeErr != nil {
-				slog.Error("failed to close database connection", "error", closeErr)
-			}
-
-			os.Exit(1)
-		}
 	case sig := <-quit:
-		slog.Info("received shutdown signal", "signal", sig)
-	}
+		slog.Info("shutdown signal received", "signal", sig.String())
+		cancel()
 
-	slog.Info("shutting down server")
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer shutdownCancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("server forced to shutdown", "error", err)
-		os.Exit(1)
-	}
-
-	// Close publisher
-	if publisher != nil {
-		if err := publisher.Close(); err != nil {
-			slog.Error("failed to close publisher", "error", err)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			slog.Error("failed to shutdown server", "error", err)
+			return 1
 		}
-	}
 
-	if err := sqlDB.Close(); err != nil {
-		slog.Error("failed to close database connection", "error", err)
-	}
+		slog.Info("server exited properly")
+		return 0
 
-	slog.Info("server exited properly")
+	case err := <-serverErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return 0
+		}
+		slog.Error("server exited with error", "error", err)
+		return 1
+	}
 }
 
 func initDatabase(cfg config.DatabaseConfig) (*gorm.DB, error) {
