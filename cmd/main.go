@@ -34,6 +34,7 @@ func run() int {
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load configuration", "error", err)
+
 		return 1
 	}
 
@@ -43,6 +44,7 @@ func run() int {
 	// Validate pubsub configuration
 	if err := cfg.PubSub.Validate(); err != nil {
 		slog.Error("pubsub configuration error", "error", err)
+
 		return 1
 	}
 
@@ -54,14 +56,17 @@ func run() int {
 	db, err := initDatabase(cfg.Database)
 	if err != nil {
 		slog.Error("failed to initialize database", "error", err)
+
 		return 1
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
 		slog.Error("failed to get underlying sql.DB", "error", err)
+
 		return 1
 	}
+
 	defer func() {
 		if err := sqlDB.Close(); err != nil {
 			slog.Error("failed to close database connection", "error", err)
@@ -72,8 +77,10 @@ func run() int {
 	publisher, err := initPublisher(ctx, cfg)
 	if err != nil {
 		slog.Error("failed to create publisher", "error", err)
+
 		return 1
 	}
+
 	if publisher != nil {
 		defer func() {
 			if err := publisher.Close(); err != nil {
@@ -100,8 +107,10 @@ func run() int {
 
 	// Start server in goroutine
 	serverErr := make(chan error, 1)
+
 	go func() {
 		slog.Info("starting server", "address", cfg.Server.Address())
+
 		serverErr <- srv.ListenAndServe()
 	}()
 
@@ -119,17 +128,21 @@ func run() int {
 
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			slog.Error("failed to shutdown server", "error", err)
+
 			return 1
 		}
 
 		slog.Info("server exited properly")
+
 		return 0
 
 	case err := <-serverErr:
 		if errors.Is(err, http.ErrServerClosed) {
 			return 0
 		}
+
 		slog.Error("server exited with error", "error", err)
+
 		return 1
 	}
 }
