@@ -225,10 +225,42 @@ func (r *remindRepositoryImpl) Delete(ctx context.Context, id domain.RemindID) e
 	return nil
 }
 
-func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain.TaskID) (int64, error) {
+func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain.TaskID) ([]domain.RemindID, error) {
 	slog.Debug("deleting reminds by task ID",
 		"task_id", taskID.String(),
 	)
+
+	var models []RemindModel
+	if err := r.db.WithContext(ctx).
+		Select("id").
+		Where("task_id = ?", taskID.String()).
+		Find(&models).Error; err != nil {
+		slog.Error("failed to find reminds by task ID",
+			"task_id", taskID.String(),
+			"error", err,
+		)
+		return nil, err
+	}
+
+	if len(models) == 0 {
+		slog.Debug("no reminds found for task ID",
+			"task_id", taskID.String(),
+		)
+		return nil, nil
+	}
+
+	ids := make([]domain.RemindID, len(models))
+	for i, m := range models {
+		id, err := domain.RemindIDFromString(m.ID)
+		if err != nil {
+			slog.Error("failed to parse remind ID",
+				"id", m.ID,
+				"error", err,
+			)
+			return nil, err
+		}
+		ids[i] = id
+	}
 
 	result := r.db.WithContext(ctx).Where("task_id = ?", taskID.String()).Delete(&RemindModel{})
 	if result.Error != nil {
@@ -236,16 +268,15 @@ func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain
 			"task_id", taskID.String(),
 			"error", result.Error,
 		)
-
-		return 0, result.Error
+		return nil, result.Error
 	}
 
 	slog.Debug("reminds deleted by task ID",
 		"task_id", taskID.String(),
-		"count", result.RowsAffected,
+		"count", len(ids),
 	)
 
-	return result.RowsAffected, nil
+	return ids, nil
 }
 
 func (r *remindRepositoryImpl) WithTx(ctx context.Context, fn func(repo domain.RemindRepository) error) error {
