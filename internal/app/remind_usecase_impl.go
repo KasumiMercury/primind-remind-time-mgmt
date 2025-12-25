@@ -263,7 +263,7 @@ func (uc *remindUseCaseImpl) CancelRemindByTaskID(ctx context.Context, input Can
 		return NewValidationError("user_id", err.Error())
 	}
 
-	deletedCount, err := uc.repo.DeleteByTaskID(ctx, taskID)
+	deletedIDs, err := uc.repo.DeleteByTaskID(ctx, taskID)
 	if err != nil {
 		slog.Error("failed to cancel reminds by task ID",
 			"error", err,
@@ -274,12 +274,18 @@ func (uc *remindUseCaseImpl) CancelRemindByTaskID(ctx context.Context, input Can
 		return fmt.Errorf("%w: %v", ErrInternalError, err)
 	}
 
-	if uc.publisher != nil && deletedCount > 0 {
+	if uc.publisher != nil && len(deletedIDs) > 0 {
+		remindIDStrings := make([]string, len(deletedIDs))
+		for i, id := range deletedIDs {
+			remindIDStrings[i] = id.String()
+		}
+
 		req := &throttlev1.CancelRemindRequest{
 			TaskId:       input.TaskID,
 			UserId:       input.UserID,
-			DeletedCount: deletedCount,
+			DeletedCount: int64(len(deletedIDs)),
 			CancelledAt:  timestamppb.Now(),
+			RemindIds:    remindIDStrings,
 		}
 		if pubErr := uc.publisher.PublishRemindCancelled(ctx, req); pubErr != nil {
 			slog.Error("failed to publish remind cancelled event",
@@ -292,7 +298,7 @@ func (uc *remindUseCaseImpl) CancelRemindByTaskID(ctx context.Context, input Can
 	slog.Info("reminds canceled by task ID",
 		"task_id", input.TaskID,
 		"user_id", input.UserID,
-		"deleted_count", deletedCount,
+		"deleted_count", len(deletedIDs),
 	)
 
 	return nil
