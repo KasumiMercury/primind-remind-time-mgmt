@@ -239,6 +239,7 @@ func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain
 			"task_id", taskID.String(),
 			"error", err,
 		)
+
 		return nil, err
 	}
 
@@ -246,6 +247,7 @@ func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain
 		slog.Debug("no reminds found for task ID",
 			"task_id", taskID.String(),
 		)
+
 		return nil, nil
 	}
 
@@ -257,8 +259,10 @@ func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain
 				"id", m.ID,
 				"error", err,
 			)
+
 			return nil, err
 		}
+
 		ids[i] = id
 	}
 
@@ -268,6 +272,7 @@ func (r *remindRepositoryImpl) DeleteByTaskID(ctx context.Context, taskID domain
 			"task_id", taskID.String(),
 			"error", result.Error,
 		)
+
 		return nil, result.Error
 	}
 
