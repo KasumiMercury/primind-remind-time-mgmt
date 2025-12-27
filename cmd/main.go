@@ -64,6 +64,7 @@ func run() error {
 		return err
 	}
 
+	// Validate pubsub configuration
 	if err := cfg.PubSub.Validate(); err != nil {
 		slog.ErrorContext(ctx, "pubsub configuration error",
 			slog.String("event", "config.validate.fail"),
@@ -73,6 +74,11 @@ func run() error {
 		return err
 	}
 
+	// Create cancellable context for cleanup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Initialize database
 	db, err := initDatabase(cfg.Database)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to initialize database",
@@ -122,10 +128,12 @@ func run() error {
 	}
 	defer closePublisher()
 
+	// Create repository, use case, and handler
 	remindRepo := repository.NewRemindRepository(db)
 	remindUseCase := app.NewRemindUseCase(remindRepo, publisher)
 	remindHandler := handler.NewRemindHandler(remindUseCase)
 
+	// Setup router
 	router := setupRouter(remindHandler)
 
 	server := &http.Server{
