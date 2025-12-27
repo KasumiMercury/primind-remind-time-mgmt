@@ -1,76 +1,126 @@
-//go:build !gcloud
-
 package main
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"gorm.io/plugin/opentelemetry/tracing"
 
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/app"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/config"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/handler"
-	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/pubsub"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/repository"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/logging"
 )
 
+// Version is set at build time via ldflags.
+var Version = "dev"
+
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	obs, err := initObservability(ctx)
+	if err != nil {
+		slog.Error("failed to initialize observability", slog.String("error", err.Error()))
+
+		return err
+	}
+
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+
+		if err := obs.Shutdown(shutdownCtx); err != nil {
+			slog.Warn("failed to shutdown observability", slog.String("error", err.Error()))
+		}
+	}()
+
+	slog.SetDefault(obs.Logger())
 
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("failed to load configuration", "error", err)
-		os.Exit(1)
+		slog.ErrorContext(ctx, "failed to load configuration",
+			slog.String("event", "config.load.fail"),
+			slog.String("error", err.Error()),
+		)
+
+		return err
 	}
 
-	setupLogger(cfg.Log)
-
 	if err := cfg.PubSub.Validate(); err != nil {
-		slog.Error("pubsub configuration error", "error", err)
-		os.Exit(1)
+		slog.ErrorContext(ctx, "pubsub configuration error",
+			slog.String("event", "config.validate.fail"),
+			slog.String("error", err.Error()),
+		)
+
+		return err
 	}
 
 	db, err := initDatabase(cfg.Database)
 	if err != nil {
-		slog.Error("failed to initialize database", "error", err)
-		os.Exit(1)
+		slog.ErrorContext(ctx, "failed to initialize database",
+			slog.String("event", "db.init.fail"),
+			slog.String("error", err.Error()),
+		)
+
+		return err
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		slog.Error("failed to get underlying sql.DB", "error", err)
-		os.Exit(1)
+		slog.ErrorContext(ctx, "failed to get underlying sql.DB",
+			slog.String("event", "db.handle.fail"),
+			slog.String("error", err.Error()),
+		)
+
+		return err
 	}
 
-	// Initialize publisher
-	var publisher pubsub.Publisher
-
-	if cfg.PubSub.NatsURL != "" {
-		ctx := context.Background()
-
-		publisher, err = pubsub.NewNATSPublisherWithStream(ctx, pubsub.NATSPublisherConfig{
-			URL: cfg.PubSub.NatsURL,
-		})
-		if err != nil {
-			slog.Error("failed to create NATS publisher", "error", err)
-			os.Exit(1)
+	defer func() {
+		if err := sqlDB.Close(); err != nil {
+			slog.Warn("failed to close database connection", slog.String("error", err.Error()))
 		}
+	}()
 
-		slog.Info("NATS publisher initialized", "url", cfg.PubSub.NatsURL)
-	} else {
-		slog.Warn("NATS_URL not set, event publishing disabled")
+	publisher, err := initPublisher(ctx, cfg)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create publisher",
+			slog.String("event", "pubsub.init.fail"),
+			slog.String("error", err.Error()),
+		)
+
+		return err
 	}
+
+	var closePublisherOnce sync.Once
+
+	closePublisher := func() {
+		closePublisherOnce.Do(func() {
+			if publisher != nil {
+				if err := publisher.Close(); err != nil {
+					slog.Warn("failed to close publisher", slog.String("error", err.Error()))
+				}
+			}
+		})
+	}
+	defer closePublisher()
 
 	remindRepo := repository.NewRemindRepository(db)
 	remindUseCase := app.NewRemindUseCase(remindRepo, publisher)
@@ -78,79 +128,64 @@ func main() {
 
 	router := setupRouter(remindHandler)
 
-	srv := &http.Server{
-		Addr:         cfg.Server.Address(),
-		Handler:      router,
-		ReadTimeout:  cfg.Server.ReadTimeout,
-		WriteTimeout: cfg.Server.WriteTimeout,
+	server := &http.Server{
+		Addr:              cfg.Server.Address(),
+		Handler:           router,
+		ReadTimeout:       cfg.Server.ReadTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	serverErr := make(chan error, 1)
+	slog.InfoContext(ctx, "starting server",
+		slog.String("event", "server.start"),
+		slog.String("address", cfg.Server.Address()),
+		slog.String("version", Version),
+	)
 
 	go func() {
-		slog.Info("starting server", "address", cfg.Server.Address())
+		<-ctx.Done()
 
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErr <- err
+		slog.InfoContext(ctx, "shutdown signal received",
+			slog.String("event", "server.shutdown.start"),
+		)
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+		defer shutdownCancel()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			slog.Error("failed to shutdown server", slog.String("error", err.Error()))
 		}
 
-		close(serverErr)
+		closePublisher()
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.ErrorContext(ctx, "server exited with error",
+			slog.String("event", "server.exit.fail"),
+			slog.String("error", err.Error()),
+		)
 
-	select {
-	case err := <-serverErr:
-		if err != nil {
-			slog.Error("server failed to start", "error", err)
-
-			if publisher != nil {
-				if closeErr := publisher.Close(); closeErr != nil {
-					slog.Error("failed to close publisher", "error", closeErr)
-				}
-			}
-
-			if closeErr := sqlDB.Close(); closeErr != nil {
-				slog.Error("failed to close database connection", "error", closeErr)
-			}
-
-			os.Exit(1)
-		}
-	case sig := <-quit:
-		slog.Info("received shutdown signal", "signal", sig)
+		return err
 	}
 
-	slog.Info("shutting down server")
+	slog.InfoContext(ctx, "server stopped",
+		slog.String("event", "server.stop"),
+	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("server forced to shutdown", "error", err)
-		os.Exit(1)
-	}
-
-	// Close publisher
-	if publisher != nil {
-		if err := publisher.Close(); err != nil {
-			slog.Error("failed to close publisher", "error", err)
-		}
-	}
-
-	if err := sqlDB.Close(); err != nil {
-		slog.Error("failed to close database connection", "error", err)
-	}
-
-	slog.Info("server exited properly")
+	return nil
 }
 
 func initDatabase(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logging.NewGormLogger(200 * time.Millisecond),
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if err := db.Use(tracing.NewPlugin()); err != nil {
+		return nil, fmt.Errorf("failed to register GORM tracing plugin: %w", err)
 	}
 
 	sqlDB, err := db.DB()
@@ -163,35 +198,4 @@ func initDatabase(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
 	return db, nil
-}
-
-func setupRouter(remindHandler *handler.RemindHandler) *gin.Engine {
-	router := gin.Default()
-
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
-	})
-
-	v1 := router.Group("/api/v1")
-	remindHandler.RegisterRoutes(v1)
-
-	return router
-}
-
-func setupLogger(cfg config.LogConfig) {
-	var level slog.Level
-
-	switch strings.ToLower(cfg.Level) {
-	case "debug":
-		level = slog.LevelDebug
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
-	}
-
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
-	slog.SetDefault(slog.New(handler))
 }
