@@ -15,6 +15,8 @@ import (
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/pubsub"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/logging"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/metrics"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/middleware"
 )
 
 func initPublisher(ctx context.Context, cfg *config.Config) (pubsub.Publisher, error) {
@@ -67,7 +69,30 @@ func initObservability(ctx context.Context) (*observability.Resources, error) {
 }
 
 func setupRouter(remindHandler *handler.RemindHandler) *gin.Engine {
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+
+	router := gin.New()
+
+	httpMetrics, err := metrics.NewHTTPMetrics()
+	if err != nil {
+		slog.Warn("failed to initialize HTTP metrics",
+			slog.String("error", err.Error()),
+		)
+	}
+
+	// Add observability middleware
+	router.Use(
+		middleware.Gin(middleware.GinConfig{
+			SkipPaths:       []string{"/ping", "/health", "/healthz", "/metrics"},
+			Module:          logging.Module("remind"),
+			ModuleResolver:  nil,
+			Worker:          false,
+			JobNameResolver: nil,
+			TracerName:      "github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/middleware",
+			HTTPMetrics:     httpMetrics,
+		}),
+		middleware.PanicRecoveryGin(),
+	)
 
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
