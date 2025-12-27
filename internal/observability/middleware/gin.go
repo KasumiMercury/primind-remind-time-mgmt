@@ -44,10 +44,12 @@ func Gin(cfg GinConfig) gin.HandlerFunc {
 
 		requestID := logging.ValidateAndExtractRequestID(c.Request.Header.Get("x-request-id"))
 		ctx := logging.WithRequestID(c.Request.Context(), requestID)
+
 		module := cfg.Module
 		if cfg.ModuleResolver != nil {
 			module = cfg.ModuleResolver(c)
 		}
+
 		if module != "" {
 			ctx = logging.WithModule(ctx, module)
 		}
@@ -60,6 +62,7 @@ func Gin(cfg GinConfig) gin.HandlerFunc {
 		}
 
 		tracer := otel.Tracer(cfg.TracerName)
+
 		ctx, span := tracer.Start(ctx, fmt.Sprintf("%s %s", c.Request.Method, path))
 		defer span.End()
 
@@ -71,12 +74,15 @@ func Gin(cfg GinConfig) gin.HandlerFunc {
 		finishEvent := "http.request.finish"
 		finishMessage := "request completed"
 		jobName := ""
+
 		if cfg.Worker {
 			finishEvent = "job.finish"
 			finishMessage = "job finished"
+
 			if cfg.JobNameResolver != nil {
 				jobName = cfg.JobNameResolver(c)
 			}
+
 			if jobName == "" {
 				jobName = c.Request.URL.Path
 			}
@@ -115,6 +121,7 @@ func Gin(cfg GinConfig) gin.HandlerFunc {
 				slog.String("job.id", requestID),
 			)
 		}
+
 		slog.LogAttrs(ctx, slog.LevelInfo, finishMessage, finishAttrs...)
 	}
 }
