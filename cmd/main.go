@@ -3,49 +3,75 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"gorm.io/plugin/opentelemetry/tracing"
 
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/app"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/config"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/handler"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/repository"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/logging"
 )
 
+// Version is set at build time via ldflags.
+var Version = "dev"
+
 func main() {
-	os.Exit(run())
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
 }
 
-func run() int {
-	// Initialize default logger for early logging
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	// Load configuration
-	cfg, err := config.Load()
+	obs, err := initObservability(ctx)
 	if err != nil {
-		slog.Error("failed to load configuration", "error", err)
+		slog.Error("failed to initialize observability", slog.String("error", err.Error()))
 
-		return 1
+		return err
 	}
 
-	// Setup logger with configured level
-	setupLogger(cfg.Log)
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+
+		if err := obs.Shutdown(shutdownCtx); err != nil {
+			slog.Warn("failed to shutdown observability", slog.String("error", err.Error()))
+		}
+	}()
+
+	slog.SetDefault(obs.Logger())
+
+	cfg, err := config.Load()
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load configuration",
+			slog.String("event", "config.load.fail"),
+			slog.String("error", err.Error()),
+		)
+
+		return err
+	}
 
 	// Validate pubsub configuration
 	if err := cfg.PubSub.Validate(); err != nil {
-		slog.Error("pubsub configuration error", "error", err)
+		slog.ErrorContext(ctx, "pubsub configuration error",
+			slog.String("event", "config.validate.fail"),
+			slog.String("error", err.Error()),
+		)
 
-		return 1
+		return err
 	}
 
 	// Create cancellable context for cleanup
@@ -55,39 +81,52 @@ func run() int {
 	// Initialize database
 	db, err := initDatabase(cfg.Database)
 	if err != nil {
-		slog.Error("failed to initialize database", "error", err)
+		slog.ErrorContext(ctx, "failed to initialize database",
+			slog.String("event", "db.init.fail"),
+			slog.String("error", err.Error()),
+		)
 
-		return 1
+		return err
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		slog.Error("failed to get underlying sql.DB", "error", err)
+		slog.ErrorContext(ctx, "failed to get underlying sql.DB",
+			slog.String("event", "db.handle.fail"),
+			slog.String("error", err.Error()),
+		)
 
-		return 1
+		return err
 	}
 
 	defer func() {
 		if err := sqlDB.Close(); err != nil {
-			slog.Error("failed to close database connection", "error", err)
+			slog.Warn("failed to close database connection", slog.String("error", err.Error()))
 		}
 	}()
 
-	// Initialize publisher
 	publisher, err := initPublisher(ctx, cfg)
 	if err != nil {
-		slog.Error("failed to create publisher", "error", err)
+		slog.ErrorContext(ctx, "failed to create publisher",
+			slog.String("event", "pubsub.init.fail"),
+			slog.String("error", err.Error()),
+		)
 
-		return 1
+		return err
 	}
 
-	if publisher != nil {
-		defer func() {
-			if err := publisher.Close(); err != nil {
-				slog.Warn("failed to close publisher", "error", err)
+	var closePublisherOnce sync.Once
+
+	closePublisher := func() {
+		closePublisherOnce.Do(func() {
+			if publisher != nil {
+				if err := publisher.Close(); err != nil {
+					slog.Warn("failed to close publisher", slog.String("error", err.Error()))
+				}
 			}
-		}()
+		})
 	}
+	defer closePublisher()
 
 	// Create repository, use case, and handler
 	remindRepo := repository.NewRemindRepository(db)
@@ -97,62 +136,64 @@ func run() int {
 	// Setup router
 	router := setupRouter(remindHandler)
 
-	// Create HTTP server
-	srv := &http.Server{
-		Addr:         cfg.Server.Address(),
-		Handler:      router,
-		ReadTimeout:  cfg.Server.ReadTimeout,
-		WriteTimeout: cfg.Server.WriteTimeout,
+	server := &http.Server{
+		Addr:              cfg.Server.Address(),
+		Handler:           router,
+		ReadTimeout:       cfg.Server.ReadTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	// Start server in goroutine
-	serverErr := make(chan error, 1)
+	slog.InfoContext(ctx, "starting server",
+		slog.String("event", "server.start"),
+		slog.String("address", cfg.Server.Address()),
+		slog.String("version", Version),
+	)
 
 	go func() {
-		slog.Info("starting server", "address", cfg.Server.Address())
+		<-ctx.Done()
 
-		serverErr <- srv.ListenAndServe()
-	}()
+		slog.InfoContext(ctx, "shutdown signal received",
+			slog.String("event", "server.shutdown.start"),
+		)
 
-	// Wait for shutdown signal or server error
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case sig := <-quit:
-		slog.Info("shutdown signal received", "signal", sig.String())
-		cancel()
-
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 		defer shutdownCancel()
 
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			slog.Error("failed to shutdown server", "error", err)
-
-			return 1
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			slog.Error("failed to shutdown server", slog.String("error", err.Error()))
 		}
 
-		slog.Info("server exited properly")
+		closePublisher()
+	}()
 
-		return 0
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.ErrorContext(ctx, "server exited with error",
+			slog.String("event", "server.exit.fail"),
+			slog.String("error", err.Error()),
+		)
 
-	case err := <-serverErr:
-		if errors.Is(err, http.ErrServerClosed) {
-			return 0
-		}
-
-		slog.Error("server exited with error", "error", err)
-
-		return 1
+		return err
 	}
+
+	slog.InfoContext(ctx, "server stopped",
+		slog.String("event", "server.stop"),
+	)
+
+	return nil
 }
 
 func initDatabase(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logging.NewGormLogger(200 * time.Millisecond),
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if err := db.Use(tracing.NewPlugin()); err != nil {
+		return nil, fmt.Errorf("failed to register GORM tracing plugin: %w", err)
 	}
 
 	sqlDB, err := db.DB()
@@ -165,35 +206,4 @@ func initDatabase(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
 	return db, nil
-}
-
-func setupRouter(remindHandler *handler.RemindHandler) *gin.Engine {
-	router := gin.Default()
-
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
-	})
-
-	v1 := router.Group("/api/v1")
-	remindHandler.RegisterRoutes(v1)
-
-	return router
-}
-
-func setupLogger(cfg config.LogConfig) {
-	var level slog.Level
-
-	switch strings.ToLower(cfg.Level) {
-	case "debug":
-		level = slog.LevelDebug
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
-	}
-
-	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
-	slog.SetDefault(slog.New(handler))
 }

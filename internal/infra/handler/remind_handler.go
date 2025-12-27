@@ -28,14 +28,15 @@ func NewRemindHandler(useCase app.RemindUseCase) *RemindHandler {
 }
 
 func (h *RemindHandler) CreateRemind(c *gin.Context) {
-	slog.Info("handling create remind request",
+	ctx := c.Request.Context()
+	slog.InfoContext(ctx, "handling create remind request",
 		"method", c.Request.Method,
 		"path", c.Request.URL.Path,
 	)
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		slog.Error("failed to read request body", "error", err)
+		slog.ErrorContext(ctx, "failed to read request body", "error", err)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
 
 		return
@@ -43,7 +44,7 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 
 	var req remindv1.CreateRemindRequest
 	if err := pjson.Unmarshal(body, &req); err != nil {
-		slog.Warn("request unmarshal failed",
+		slog.WarnContext(ctx, "request unmarshal failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
@@ -53,7 +54,7 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 	}
 
 	if err := pjson.Validate(&req); err != nil {
-		slog.Warn("request validation failed",
+		slog.WarnContext(ctx, "request validation failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
@@ -83,14 +84,14 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 		TaskType: taskTypeToString(req.TaskType),
 	}
 
-	output, err := h.useCase.CreateRemind(c.Request.Context(), input)
+	output, err := h.useCase.CreateRemind(ctx, input)
 	if err != nil {
 		h.handleError(c, err)
 
 		return
 	}
 
-	slog.Info("reminds created successfully",
+	slog.InfoContext(ctx, "reminds created successfully",
 		"task_id", req.TaskId,
 		"count", output.Count,
 	)
@@ -98,14 +99,15 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 }
 
 func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
-	slog.Info("handling get reminds by time range request",
+	ctx := c.Request.Context()
+	slog.InfoContext(ctx, "handling get reminds by time range request",
 		"method", c.Request.Method,
 		"path", c.Request.URL.Path,
 	)
 
 	var req GetRemindsByTimeRangeRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		slog.Warn("request validation failed",
+		slog.WarnContext(ctx, "request validation failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
@@ -119,14 +121,14 @@ func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
 		End:   req.End,
 	}
 
-	output, err := h.useCase.GetRemindsByTimeRange(c.Request.Context(), input)
+	output, err := h.useCase.GetRemindsByTimeRange(ctx, input)
 	if err != nil {
 		h.handleError(c, err)
 
 		return
 	}
 
-	slog.Info("reminds retrieved successfully",
+	slog.InfoContext(ctx, "reminds retrieved successfully",
 		"count", output.Count,
 		"start", req.Start,
 		"end", req.End,
@@ -135,9 +137,10 @@ func (h *RemindHandler) GetRemindsByTimeRange(c *gin.Context) {
 }
 
 func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
+	ctx := c.Request.Context()
 	id := c.Param("id")
 
-	slog.Info("handling update throttled request",
+	slog.InfoContext(ctx, "handling update throttled request",
 		"method", c.Request.Method,
 		"path", c.Request.URL.Path,
 		"remind_id", id,
@@ -145,7 +148,7 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		slog.Error("failed to read request body", "error", err)
+		slog.ErrorContext(ctx, "failed to read request body", "error", err)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
 
 		return
@@ -153,7 +156,7 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 
 	var req remindv1.UpdateThrottledRequest
 	if err := pjson.Unmarshal(body, &req); err != nil {
-		slog.Warn("request unmarshal failed",
+		slog.WarnContext(ctx, "request unmarshal failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
@@ -167,14 +170,14 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 		Throttled: req.Throttled,
 	}
 
-	output, err := h.useCase.UpdateThrottled(c.Request.Context(), input)
+	output, err := h.useCase.UpdateThrottled(ctx, input)
 	if err != nil {
 		h.handleError(c, err)
 
 		return
 	}
 
-	slog.Info("throttled status updated successfully",
+	slog.InfoContext(ctx, "throttled status updated successfully",
 		"remind_id", output.ID,
 		"throttled", output.Throttled,
 	)
@@ -182,9 +185,10 @@ func (h *RemindHandler) UpdateThrottled(c *gin.Context) {
 }
 
 func (h *RemindHandler) DeleteRemind(c *gin.Context) {
+	ctx := c.Request.Context()
 	id := c.Param("id")
 
-	slog.Info("handling delete remind request",
+	slog.InfoContext(ctx, "handling delete remind request",
 		"method", c.Request.Method,
 		"path", c.Request.URL.Path,
 		"remind_id", id,
@@ -194,28 +198,29 @@ func (h *RemindHandler) DeleteRemind(c *gin.Context) {
 		ID: id,
 	}
 
-	err := h.useCase.DeleteRemind(c.Request.Context(), input)
+	err := h.useCase.DeleteRemind(ctx, input)
 	if err != nil {
 		h.handleError(c, err)
 
 		return
 	}
 
-	slog.Info("remind deleted successfully",
+	slog.InfoContext(ctx, "remind deleted successfully",
 		"remind_id", id,
 	)
 	c.Status(http.StatusNoContent)
 }
 
 func (h *RemindHandler) CancelRemind(c *gin.Context) {
-	slog.Info("handling cancel remind request",
+	ctx := c.Request.Context()
+	slog.InfoContext(ctx, "handling cancel remind request",
 		"method", c.Request.Method,
 		"path", c.Request.URL.Path,
 	)
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		slog.Error("failed to read request body", "error", err)
+		slog.ErrorContext(ctx, "failed to read request body", "error", err)
 		respondProtoError(c, http.StatusBadRequest, "validation_error", "failed to read request body", "")
 
 		return
@@ -223,7 +228,7 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 
 	var req remindv1.CancelRemindRequest
 	if err := pjson.Unmarshal(body, &req); err != nil {
-		slog.Warn("request unmarshal failed",
+		slog.WarnContext(ctx, "request unmarshal failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
@@ -233,7 +238,7 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 	}
 
 	if err := pjson.Validate(&req); err != nil {
-		slog.Warn("request validation failed",
+		slog.WarnContext(ctx, "request validation failed",
 			"error", err,
 			"path", c.Request.URL.Path,
 		)
@@ -247,14 +252,14 @@ func (h *RemindHandler) CancelRemind(c *gin.Context) {
 		UserID: req.UserId,
 	}
 
-	err = h.useCase.CancelRemindByTaskID(c.Request.Context(), input)
+	err = h.useCase.CancelRemindByTaskID(ctx, input)
 	if err != nil {
 		h.handleError(c, err)
 
 		return
 	}
 
-	slog.Info("reminds canceled successfully",
+	slog.InfoContext(ctx, "reminds canceled successfully",
 		"task_id", req.TaskId,
 		"user_id", req.UserId,
 	)
