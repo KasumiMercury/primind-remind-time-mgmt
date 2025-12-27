@@ -12,6 +12,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 
 	throttlev1 "github.com/KasumiMercury/primind-remind-time-mgmt/internal/gen/throttle/v1"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/logging"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/tracing"
 	pjson "github.com/KasumiMercury/primind-remind-time-mgmt/internal/proto"
 )
 
@@ -50,9 +52,21 @@ func (p *GCloudPublisher) PublishRemindCancelled(ctx context.Context, req *throt
 	}
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
-	msg.Metadata.Set("event_type", "remind.cancelled")
+	msg.Metadata.Set("message_type", "remind.cancel")
 	msg.Metadata.Set("task_id", req.GetTaskId())
 	msg.Metadata.Set("user_id", req.GetUserId())
+
+	// Inject trace context into message metadata
+	carrier := make(map[string]string)
+	tracing.InjectToMap(ctx, carrier)
+	for k, v := range carrier {
+		msg.Metadata.Set(k, v)
+	}
+	reqID := logging.RequestIDFromContext(ctx)
+	if reqID == "" {
+		reqID = logging.ValidateAndExtractRequestID("")
+	}
+	msg.Metadata.Set("x-request-id", reqID)
 
 	if err := p.publisher.Publish(TopicRemindCancelled, msg); err != nil {
 		slog.Error("failed to publish remind cancelled event",
