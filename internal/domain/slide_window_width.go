@@ -12,6 +12,13 @@ type SlideWindowWidth struct {
 const (
 	MinSlideWindowWidth = 1 * time.Minute
 	MaxSlideWindowWidth = 10 * time.Minute
+
+	WindowWidthShort = 2 * time.Minute
+	WindowWidthBase  = 5 * time.Minute
+
+	IntermediateMaxWidthShort = 5 * time.Minute
+
+	IntermediateIntervalRatio = 0.30
 )
 
 var (
