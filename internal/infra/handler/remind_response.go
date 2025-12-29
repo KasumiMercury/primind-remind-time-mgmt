@@ -14,7 +14,7 @@ type RemindResponse struct {
 	TaskID           string           `json:"task_id"`
 	TaskType         string           `json:"task_type"`
 	Throttled        bool             `json:"throttled"`
-	SlideWindowWidth int32            `json:"slide_window_width"` // slide window width in seconds (range: 60-1800)
+	SlideWindowWidth int32            `json:"slide_window_width"` // slide window width in seconds (range: 60-600)
 	CreatedAt        time.Time        `json:"created_at"`
 	UpdatedAt        time.Time        `json:"updated_at"`
 }
