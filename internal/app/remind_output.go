@@ -7,15 +7,16 @@ import (
 )
 
 type RemindOutput struct {
-	ID        string
-	Time      time.Time
-	UserID    string
-	Devices   []DeviceOutput
-	TaskID    string
-	TaskType  string
-	Throttled bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID               string
+	Time             time.Time
+	UserID           string
+	Devices          []DeviceOutput
+	TaskID           string
+	TaskType         string
+	Throttled        bool
+	SlideWindowWidth int32 // slide window width in seconds
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type DeviceOutput struct {
@@ -38,15 +39,16 @@ func FromEntity(remind *domain.Remind) RemindOutput {
 	}
 
 	return RemindOutput{
-		ID:        remind.ID().String(),
-		Time:      remind.Time(),
-		UserID:    remind.UserID().String(),
-		Devices:   devices,
-		TaskID:    remind.TaskID().String(),
-		TaskType:  string(remind.TaskType()),
-		Throttled: remind.IsThrottled(),
-		CreatedAt: remind.CreatedAt(),
-		UpdatedAt: remind.UpdatedAt(),
+		ID:               remind.ID().String(),
+		Time:             remind.Time(),
+		UserID:           remind.UserID().String(),
+		Devices:          devices,
+		TaskID:           remind.TaskID().String(),
+		TaskType:         string(remind.TaskType()),
+		Throttled:        remind.IsThrottled(),
+		SlideWindowWidth: remind.SlideWindowWidth().Seconds(),
+		CreatedAt:        remind.CreatedAt(),
+		UpdatedAt:        remind.UpdatedAt(),
 	}
 }
 
