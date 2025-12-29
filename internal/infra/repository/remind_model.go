@@ -40,15 +40,16 @@ func (d DevicesJSONB) Value() (driver.Value, error) {
 }
 
 type RemindModel struct {
-	ID        string       `gorm:"column:id;type:uuid;primaryKey"`
-	Time      time.Time    `gorm:"column:time;type:timestamptz;not null;index:idx_reminds_time;uniqueIndex:idx_reminds_task_id_time"`
-	UserID    string       `gorm:"column:user_id;type:uuid;not null;index:idx_reminds_user_id"`
-	Devices   DevicesJSONB `gorm:"column:devices;type:jsonb;not null"`
-	TaskID    string       `gorm:"column:task_id;type:uuid;not null;uniqueIndex:idx_reminds_task_id_time"`
-	TaskType  string       `gorm:"column:task_type;type:varchar(255);not null"`
-	Throttled bool         `gorm:"column:throttled;type:boolean;not null;default:false;index:idx_reminds_throttled"`
-	CreatedAt time.Time    `gorm:"column:created_at;type:timestamptz;not null"`
-	UpdatedAt time.Time    `gorm:"column:updated_at;type:timestamptz;not null"`
+	ID          string       `gorm:"column:id;type:uuid;primaryKey"`
+	Time        time.Time    `gorm:"column:time;type:timestamptz;not null;index:idx_reminds_time;uniqueIndex:idx_reminds_task_id_time"`
+	UserID      string       `gorm:"column:user_id;type:uuid;not null;index:idx_reminds_user_id"`
+	Devices     DevicesJSONB `gorm:"column:devices;type:jsonb;not null"`
+	TaskID      string       `gorm:"column:task_id;type:uuid;not null;uniqueIndex:idx_reminds_task_id_time"`
+	TaskType    string       `gorm:"column:task_type;type:varchar(255);not null"`
+	Throttled        bool  `gorm:"column:throttled;type:boolean;not null;default:false;index:idx_reminds_throttled"`
+	SlideWindowWidth int32 `gorm:"column:slide_window_width;type:integer;not null"` // stored as seconds
+	CreatedAt        time.Time    `gorm:"column:created_at;type:timestamptz;not null"`
+	UpdatedAt   time.Time    `gorm:"column:updated_at;type:timestamptz;not null"`
 }
 
 func (RemindModel) TableName() string {
@@ -91,6 +92,11 @@ func (m *RemindModel) ToEntity() (*domain.Remind, error) {
 		return nil, err
 	}
 
+	slideWindowWidth, err := domain.SlideWindowWidthFromSeconds(m.SlideWindowWidth)
+	if err != nil {
+		return nil, err
+	}
+
 	return domain.Reconstitute(
 		remindID,
 		m.Time,
@@ -99,6 +105,7 @@ func (m *RemindModel) ToEntity() (*domain.Remind, error) {
 		taskID,
 		taskType,
 		m.Throttled,
+		slideWindowWidth,
 		m.CreatedAt,
 		m.UpdatedAt,
 	), nil
@@ -114,14 +121,15 @@ func FromEntity(e *domain.Remind) *RemindModel {
 	}
 
 	return &RemindModel{
-		ID:        e.ID().String(),
-		Time:      e.Time(),
-		UserID:    e.UserID().String(),
-		Devices:   devices,
-		TaskID:    e.TaskID().String(),
-		TaskType:  string(e.TaskType()),
-		Throttled: e.IsThrottled(),
-		CreatedAt: e.CreatedAt(),
-		UpdatedAt: e.UpdatedAt(),
+		ID:               e.ID().String(),
+		Time:             e.Time(),
+		UserID:           e.UserID().String(),
+		Devices:          devices,
+		TaskID:           e.TaskID().String(),
+		TaskType:         string(e.TaskType()),
+		Throttled:        e.IsThrottled(),
+		SlideWindowWidth: e.SlideWindowWidth().Seconds(),
+		CreatedAt:        e.CreatedAt(),
+		UpdatedAt:        e.UpdatedAt(),
 	}
 }

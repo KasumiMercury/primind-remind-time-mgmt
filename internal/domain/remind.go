@@ -5,15 +5,16 @@ import (
 )
 
 type Remind struct {
-	id        RemindID
-	time      time.Time
-	userID    UserID
-	devices   Devices
-	taskID    TaskID
-	taskType  Type
-	throttled bool
-	createdAt time.Time
-	updatedAt time.Time
+	id               RemindID
+	time             time.Time
+	userID           UserID
+	devices          Devices
+	taskID           TaskID
+	taskType         Type
+	throttled        bool
+	slideWindowWidth SlideWindowWidth
+	createdAt        time.Time
+	updatedAt        time.Time
 }
 
 func NewRemind(
@@ -22,6 +23,7 @@ func NewRemind(
 	devices Devices,
 	taskID TaskID,
 	taskType Type,
+	slideWindowWidth SlideWindowWidth,
 ) (*Remind, error) {
 	if remindTime.Before(time.Now().Add(-1 * time.Minute)) {
 		return nil, ErrPastRemindTime
@@ -30,15 +32,16 @@ func NewRemind(
 	now := time.Now()
 
 	return &Remind{
-		id:        NewRemindID(),
-		time:      remindTime,
-		userID:    userID,
-		devices:   devices,
-		taskID:    taskID,
-		taskType:  taskType,
-		throttled: false,
-		createdAt: now,
-		updatedAt: now,
+		id:               NewRemindID(),
+		time:             remindTime,
+		userID:           userID,
+		devices:          devices,
+		taskID:           taskID,
+		taskType:         taskType,
+		throttled:        false,
+		slideWindowWidth: slideWindowWidth,
+		createdAt:        now,
+		updatedAt:        now,
 	}, nil
 }
 
@@ -50,19 +53,21 @@ func Reconstitute(
 	taskID TaskID,
 	taskType Type,
 	throttled bool,
+	slideWindowWidth SlideWindowWidth,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Remind {
 	return &Remind{
-		id:        id,
-		time:      remindTime,
-		userID:    userID,
-		devices:   devices,
-		taskID:    taskID,
-		taskType:  taskType,
-		throttled: throttled,
-		createdAt: createdAt,
-		updatedAt: updatedAt,
+		id:               id,
+		time:             remindTime,
+		userID:           userID,
+		devices:          devices,
+		taskID:           taskID,
+		taskType:         taskType,
+		throttled:        throttled,
+		slideWindowWidth: slideWindowWidth,
+		createdAt:        createdAt,
+		updatedAt:        updatedAt,
 	}
 }
 
@@ -107,6 +112,10 @@ func (r *Remind) TaskID() TaskID {
 
 func (r *Remind) TaskType() Type {
 	return r.taskType
+}
+
+func (r *Remind) SlideWindowWidth() SlideWindowWidth {
+	return r.slideWindowWidth
 }
 
 func (r *Remind) CreatedAt() time.Time {

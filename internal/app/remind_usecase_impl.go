@@ -87,14 +87,20 @@ func (uc *remindUseCaseImpl) CreateRemind(ctx context.Context, input CreateRemin
 		return RemindsOutput{}, NewValidationError("task_type", err.Error())
 	}
 
+	calculator := domain.NewSlideWindowWidthCalculator()
+	slideWindowWidths := calculator.CalculateSlideWindowWidths(input.Times, taskType)
+
 	reminds := make([]*domain.Remind, 0, len(input.Times))
 	for i, t := range input.Times {
+		slideWindowWidth := slideWindowWidths[t]
+
 		remind, err := domain.NewRemind(
 			t,
 			userID,
 			deviceCollection,
 			taskID,
 			taskType,
+			slideWindowWidth,
 		)
 		if err != nil {
 			return RemindsOutput{}, NewValidationError(

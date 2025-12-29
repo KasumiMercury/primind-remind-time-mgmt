@@ -357,15 +357,16 @@ func toProtoRemind(r app.RemindOutput) *remindv1.Remind {
 	}
 
 	return &remindv1.Remind{
-		Id:        r.ID,
-		Time:      timestamppb.New(r.Time),
-		UserId:    r.UserID,
-		Devices:   devices,
-		TaskId:    r.TaskID,
-		TaskType:  stringToTaskType(r.TaskType),
-		Throttled: r.Throttled,
-		CreatedAt: timestamppb.New(r.CreatedAt),
-		UpdatedAt: timestamppb.New(r.UpdatedAt),
+		Id:               r.ID,
+		Time:             timestamppb.New(r.Time),
+		UserId:           r.UserID,
+		Devices:          devices,
+		TaskId:           r.TaskID,
+		TaskType:         stringToTaskType(r.TaskType),
+		Throttled:        r.Throttled,
+		CreatedAt:        timestamppb.New(r.CreatedAt),
+		UpdatedAt:        timestamppb.New(r.UpdatedAt),
+		SlideWindowWidth: r.SlideWindowWidth,
 	}
 }
 

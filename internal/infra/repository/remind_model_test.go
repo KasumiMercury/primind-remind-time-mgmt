@@ -61,6 +61,7 @@ func createValidRemind(t *testing.T, deviceCount int, throttled bool) *domain.Re
 		createValidTaskID(t),
 		domain.TypeNear,
 		throttled,
+		domain.MustSlideWindowWidth(5*time.Minute),
 		time.Now().Add(-1*time.Hour),
 		time.Now(),
 	)
@@ -184,15 +185,16 @@ func TestToEntitySuccess(t *testing.T) {
 			updatedAt := time.Now()
 
 			model := &repository.RemindModel{
-				ID:        remindID.String(),
-				Time:      remindTime,
-				UserID:    userID.String(),
-				Devices:   devicesJSON,
-				TaskID:    taskID.String(),
-				TaskType:  "near",
-				Throttled: tt.throttled,
-				CreatedAt: createdAt,
-				UpdatedAt: updatedAt,
+				ID:               remindID.String(),
+				Time:             remindTime,
+				UserID:           userID.String(),
+				Devices:          devicesJSON,
+				TaskID:           taskID.String(),
+				TaskType:         "near",
+				Throttled:        tt.throttled,
+				SlideWindowWidth: 300, // 5 minutes in seconds
+				CreatedAt:        createdAt,
+				UpdatedAt:        updatedAt,
 			}
 
 			entity, err := model.ToEntity()
@@ -221,12 +223,13 @@ func TestToEntityError(t *testing.T) {
 			name: "invalid remind ID",
 			setupModel: func(t *testing.T) *repository.RemindModel {
 				return &repository.RemindModel{
-					ID:       "invalid-uuid",
-					Time:     time.Now().Add(1 * time.Hour),
-					UserID:   createValidUserID(t).String(),
-					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
-					TaskID:   createValidTaskID(t).String(),
-					TaskType: "near",
+					ID:               "invalid-uuid",
+					Time:             time.Now().Add(1 * time.Hour),
+					UserID:           createValidUserID(t).String(),
+					Devices:          repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
+					TaskID:           createValidTaskID(t).String(),
+					TaskType:         "near",
+					SlideWindowWidth: 300, // 5 minutes in seconds
 				}
 			},
 			expectedErr: "invalid",
@@ -235,12 +238,13 @@ func TestToEntityError(t *testing.T) {
 			name: "invalid user ID - not UUIDv7",
 			setupModel: func(t *testing.T) *repository.RemindModel {
 				return &repository.RemindModel{
-					ID:       domain.NewRemindID().String(),
-					Time:     time.Now().Add(1 * time.Hour),
-					UserID:   uuid.Must(uuid.NewRandom()).String(), // UUIDv4
-					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
-					TaskID:   createValidTaskID(t).String(),
-					TaskType: "near",
+					ID:               domain.NewRemindID().String(),
+					Time:             time.Now().Add(1 * time.Hour),
+					UserID:           uuid.Must(uuid.NewRandom()).String(), // UUIDv4
+					Devices:          repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
+					TaskID:           createValidTaskID(t).String(),
+					TaskType:         "near",
+					SlideWindowWidth: 300, // 5 minutes in seconds
 				}
 			},
 			expectedErr: "UUIDv7",
@@ -249,12 +253,13 @@ func TestToEntityError(t *testing.T) {
 			name: "invalid task ID - not UUIDv7",
 			setupModel: func(t *testing.T) *repository.RemindModel {
 				return &repository.RemindModel{
-					ID:       domain.NewRemindID().String(),
-					Time:     time.Now().Add(1 * time.Hour),
-					UserID:   createValidUserID(t).String(),
-					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
-					TaskID:   uuid.Must(uuid.NewRandom()).String(), // UUIDv4
-					TaskType: "near",
+					ID:               domain.NewRemindID().String(),
+					Time:             time.Now().Add(1 * time.Hour),
+					UserID:           createValidUserID(t).String(),
+					Devices:          repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
+					TaskID:           uuid.Must(uuid.NewRandom()).String(), // UUIDv4
+					TaskType:         "near",
+					SlideWindowWidth: 300, // 5 minutes in seconds
 				}
 			},
 			expectedErr: "UUIDv7",
@@ -263,12 +268,13 @@ func TestToEntityError(t *testing.T) {
 			name: "empty device ID",
 			setupModel: func(t *testing.T) *repository.RemindModel {
 				return &repository.RemindModel{
-					ID:       domain.NewRemindID().String(),
-					Time:     time.Now().Add(1 * time.Hour),
-					UserID:   createValidUserID(t).String(),
-					Devices:  repository.DevicesJSONB{{DeviceID: "", FCMToken: "t"}},
-					TaskID:   createValidTaskID(t).String(),
-					TaskType: "near",
+					ID:               domain.NewRemindID().String(),
+					Time:             time.Now().Add(1 * time.Hour),
+					UserID:           createValidUserID(t).String(),
+					Devices:          repository.DevicesJSONB{{DeviceID: "", FCMToken: "t"}},
+					TaskID:           createValidTaskID(t).String(),
+					TaskType:         "near",
+					SlideWindowWidth: 300, // 5 minutes in seconds
 				}
 			},
 			expectedErr: "device ID",
@@ -277,12 +283,13 @@ func TestToEntityError(t *testing.T) {
 			name: "empty FCM token",
 			setupModel: func(t *testing.T) *repository.RemindModel {
 				return &repository.RemindModel{
-					ID:       domain.NewRemindID().String(),
-					Time:     time.Now().Add(1 * time.Hour),
-					UserID:   createValidUserID(t).String(),
-					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: ""}},
-					TaskID:   createValidTaskID(t).String(),
-					TaskType: "near",
+					ID:               domain.NewRemindID().String(),
+					Time:             time.Now().Add(1 * time.Hour),
+					UserID:           createValidUserID(t).String(),
+					Devices:          repository.DevicesJSONB{{DeviceID: "d", FCMToken: ""}},
+					TaskID:           createValidTaskID(t).String(),
+					TaskType:         "near",
+					SlideWindowWidth: 300, // 5 minutes in seconds
 				}
 			},
 			expectedErr: "FCM token",
@@ -291,12 +298,13 @@ func TestToEntityError(t *testing.T) {
 			name: "empty devices slice",
 			setupModel: func(t *testing.T) *repository.RemindModel {
 				return &repository.RemindModel{
-					ID:       domain.NewRemindID().String(),
-					Time:     time.Now().Add(1 * time.Hour),
-					UserID:   createValidUserID(t).String(),
-					Devices:  repository.DevicesJSONB{},
-					TaskID:   createValidTaskID(t).String(),
-					TaskType: "near",
+					ID:               domain.NewRemindID().String(),
+					Time:             time.Now().Add(1 * time.Hour),
+					UserID:           createValidUserID(t).String(),
+					Devices:          repository.DevicesJSONB{},
+					TaskID:           createValidTaskID(t).String(),
+					TaskType:         "near",
+					SlideWindowWidth: 300, // 5 minutes in seconds
 				}
 			},
 			expectedErr: "at least one device",
@@ -305,12 +313,13 @@ func TestToEntityError(t *testing.T) {
 			name: "invalid task type",
 			setupModel: func(t *testing.T) *repository.RemindModel {
 				return &repository.RemindModel{
-					ID:       domain.NewRemindID().String(),
-					Time:     time.Now().Add(1 * time.Hour),
-					UserID:   createValidUserID(t).String(),
-					Devices:  repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
-					TaskID:   createValidTaskID(t).String(),
-					TaskType: "invalid_type",
+					ID:               domain.NewRemindID().String(),
+					Time:             time.Now().Add(1 * time.Hour),
+					UserID:           createValidUserID(t).String(),
+					Devices:          repository.DevicesJSONB{{DeviceID: "d", FCMToken: "t"}},
+					TaskID:           createValidTaskID(t).String(),
+					TaskType:         "invalid_type",
+					SlideWindowWidth: 300, // 5 minutes in seconds
 				}
 			},
 			expectedErr: "invalid task type",
