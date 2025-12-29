@@ -69,6 +69,7 @@ func TestSaveSuccess(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -123,6 +124,7 @@ func TestSaveError(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -183,6 +185,7 @@ func TestFindByIDSuccess(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				tt.throttled,
+				domain.MustSlideWindowWidth(5*time.Minute),
 				time.Now().Add(-1*time.Hour),
 				time.Now(),
 			)
@@ -283,6 +286,7 @@ func TestFindByTaskIDSuccess(t *testing.T) {
 					taskID,
 					domain.TypeNear,
 					false,
+					domain.MustSlideWindowWidth(5*time.Minute),
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)
@@ -397,6 +401,7 @@ func TestFindByTimeRangeSuccess(t *testing.T) {
 					taskID,
 					domain.TypeNear,
 					false,
+					domain.MustSlideWindowWidth(5*time.Minute),
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)
@@ -465,6 +470,7 @@ func TestFindByTimeRangeOrderSuccess(t *testing.T) {
 					taskID,
 					domain.TypeNear,
 					false,
+					domain.MustSlideWindowWidth(5*time.Minute),
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)
@@ -526,6 +532,7 @@ func TestUpdateSuccess(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -587,6 +594,7 @@ func TestUpdateNotFoundError(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				false,
+				domain.MustSlideWindowWidth(5*time.Minute),
 				time.Now().Add(-1*time.Hour),
 				time.Now(),
 			)
@@ -637,6 +645,7 @@ func TestDeleteSuccess(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -732,6 +741,7 @@ func TestWithTxCommitSuccess(t *testing.T) {
 					devices,
 					taskID,
 					domain.TypeNear,
+					domain.MustSlideWindowWidth(5*time.Minute),
 				)
 				require.NoError(t, err)
 
@@ -798,6 +808,7 @@ func TestWithTxRollbackOnError(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -807,6 +818,7 @@ func TestWithTxRollbackOnError(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -874,6 +886,7 @@ func TestWithTxRollbackOnSaveError(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -883,6 +896,7 @@ func TestWithTxRollbackOnSaveError(t *testing.T) {
 				devices,
 				taskID,
 				domain.TypeNear,
+				domain.MustSlideWindowWidth(5*time.Minute),
 			)
 			require.NoError(t, err)
 
@@ -959,6 +973,7 @@ func TestDeleteByTaskIDSuccess(t *testing.T) {
 					taskID,
 					domain.TypeNear,
 					false,
+					domain.MustSlideWindowWidth(5*time.Minute),
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)

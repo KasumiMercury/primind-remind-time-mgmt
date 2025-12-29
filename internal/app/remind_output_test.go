@@ -61,6 +61,7 @@ func createValidRemind(t *testing.T, deviceCount int, throttled bool) *domain.Re
 		createValidTaskID(t),
 		domain.TypeNear,
 		throttled,
+		domain.MustSlideWindowWidth(5*time.Minute),
 		time.Now().Add(-1*time.Hour),
 		time.Now(),
 	)
@@ -106,6 +107,7 @@ func TestFromEntitySuccess(t *testing.T) {
 			assert.Equal(t, remind.TaskID().String(), output.TaskID)
 			assert.Equal(t, string(remind.TaskType()), output.TaskType)
 			assert.Equal(t, tt.throttled, output.Throttled)
+			assert.Equal(t, remind.SlideWindowWidth().Seconds(), output.SlideWindowWidth)
 			assert.Equal(t, remind.CreatedAt(), output.CreatedAt)
 			assert.Equal(t, remind.UpdatedAt(), output.UpdatedAt)
 			assert.Len(t, output.Devices, tt.deviceCount)
