@@ -30,9 +30,11 @@ func NewSlideWindowWidth(d time.Duration) (SlideWindowWidth, error) {
 	if d < MinSlideWindowWidth {
 		return SlideWindowWidth{}, ErrSlideWindowWidthTooSmall
 	}
+
 	if d > MaxSlideWindowWidth {
 		return SlideWindowWidth{}, ErrSlideWindowWidthTooLarge
 	}
+
 	return SlideWindowWidth{duration: d}, nil
 }
 
@@ -41,6 +43,7 @@ func MustSlideWindowWidth(d time.Duration) SlideWindowWidth {
 	if err != nil {
 		panic(err)
 	}
+
 	return w
 }
 
@@ -53,7 +56,7 @@ func (w SlideWindowWidth) Duration() time.Duration {
 }
 
 func (w SlideWindowWidth) Seconds() int32 {
-	return int32(w.duration / time.Second)
+	return int32(w.duration / time.Second) // #nosec G115
 }
 
 func (w SlideWindowWidth) IsZero() bool {

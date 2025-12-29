@@ -23,9 +23,12 @@ func GetIntermediateWindowWidth(taskType Type, intervalToNext time.Duration) Sli
 
 	// Determine max width based on task type
 	var maxWidth time.Duration
+
 	switch taskType {
 	case TypeShort:
 		maxWidth = IntermediateMaxWidthShort
+	case TypeNear, TypeRelaxed, TypeScheduled:
+		maxWidth = MaxSlideWindowWidth
 	default:
 		maxWidth = MaxSlideWindowWidth
 	}
@@ -34,8 +37,10 @@ func GetIntermediateWindowWidth(taskType Type, intervalToNext time.Duration) Sli
 	if rawWidth < MinSlideWindowWidth {
 		return MustSlideWindowWidth(MinSlideWindowWidth)
 	}
+
 	if rawWidth > maxWidth {
 		return MustSlideWindowWidth(maxWidth)
 	}
+
 	return MustSlideWindowWidth(rawWidth)
 }
