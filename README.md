@@ -22,3 +22,6 @@
 
 - PostgreSQL v18
 - Cloud Pub/Sub / NATS 2.10 (JetStream)
+
+## 関連リポジトリ
+[KasumiMercury/primind-root](https://github.com/KasumiMercury/primind-root)
