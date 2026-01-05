@@ -1,6 +1,6 @@
 # Primind Remind Time Management
 
-リマインダーの時間管理サービス。リマインダーの作成・取得・更新・削除、及びNATS JetStreamへのイベント発行を担当。
+リマインドの時刻管理
 
 ## エンドポイント
 
@@ -22,3 +22,6 @@
 
 - PostgreSQL v18
 - Cloud Pub/Sub / NATS 2.10 (JetStream)
+
+## 関連リポジトリ
+[KasumiMercury/primind-root](https://github.com/KasumiMercury/primind-root)
