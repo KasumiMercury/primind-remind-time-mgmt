@@ -82,6 +82,7 @@ func (h *RemindHandler) CreateRemind(c *gin.Context) {
 		Devices:  devices,
 		TaskID:   req.TaskId,
 		TaskType: taskTypeToString(req.TaskType),
+		Color:    req.Color,
 	}
 
 	output, err := h.useCase.CreateRemind(ctx, input)
@@ -367,6 +368,7 @@ func toProtoRemind(r app.RemindOutput) *remindv1.Remind {
 		CreatedAt:        timestamppb.New(r.CreatedAt),
 		UpdatedAt:        timestamppb.New(r.UpdatedAt),
 		SlideWindowWidth: r.SlideWindowWidth,
+		Color:            r.Color,
 	}
 }
 

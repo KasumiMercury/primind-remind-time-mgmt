@@ -15,6 +15,7 @@ type RemindResponse struct {
 	TaskType         string           `json:"task_type"`
 	Throttled        bool             `json:"throttled"`
 	SlideWindowWidth int32            `json:"slide_window_width"` // slide window width in seconds (range: 60-600)
+	Color            string           `json:"color"`
 	CreatedAt        time.Time        `json:"created_at"`
 	UpdatedAt        time.Time        `json:"updated_at"`
 }
@@ -53,6 +54,7 @@ func FromDTO(output app.RemindOutput) RemindResponse {
 		TaskType:         output.TaskType,
 		Throttled:        output.Throttled,
 		SlideWindowWidth: output.SlideWindowWidth,
+		Color:            output.Color,
 		CreatedAt:        output.CreatedAt,
 		UpdatedAt:        output.UpdatedAt,
 	}

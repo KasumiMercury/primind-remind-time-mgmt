@@ -8,6 +8,7 @@ type CreateRemindInput struct {
 	Devices  []DeviceInput
 	TaskID   string
 	TaskType string
+	Color    string
 }
 
 type DeviceInput struct {

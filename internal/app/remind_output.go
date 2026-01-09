@@ -15,6 +15,7 @@ type RemindOutput struct {
 	TaskType         string
 	Throttled        bool
 	SlideWindowWidth int32 // slide window width in seconds
+	Color            string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -47,6 +48,7 @@ func FromEntity(remind *domain.Remind) RemindOutput {
 		TaskType:         string(remind.TaskType()),
 		Throttled:        remind.IsThrottled(),
 		SlideWindowWidth: remind.SlideWindowWidth().Seconds(),
+		Color:            remind.Color(),
 		CreatedAt:        remind.CreatedAt(),
 		UpdatedAt:        remind.UpdatedAt(),
 	}

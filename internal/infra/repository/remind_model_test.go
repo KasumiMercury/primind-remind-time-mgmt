@@ -62,6 +62,7 @@ func createValidRemind(t *testing.T, deviceCount int, throttled bool) *domain.Re
 		domain.TypeNear,
 		throttled,
 		domain.MustSlideWindowWidth(5*time.Minute),
+		"#EF4444",
 		time.Now().Add(-1*time.Hour),
 		time.Now(),
 	)

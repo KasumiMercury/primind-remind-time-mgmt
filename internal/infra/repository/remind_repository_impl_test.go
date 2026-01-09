@@ -70,6 +70,7 @@ func TestSaveSuccess(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -125,6 +126,7 @@ func TestSaveError(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -186,6 +188,7 @@ func TestFindByIDSuccess(t *testing.T) {
 				domain.TypeNear,
 				tt.throttled,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 				time.Now().Add(-1*time.Hour),
 				time.Now(),
 			)
@@ -287,6 +290,7 @@ func TestFindByTaskIDSuccess(t *testing.T) {
 					domain.TypeNear,
 					false,
 					domain.MustSlideWindowWidth(5*time.Minute),
+					"#EF4444",
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)
@@ -402,6 +406,7 @@ func TestFindByTimeRangeSuccess(t *testing.T) {
 					domain.TypeNear,
 					false,
 					domain.MustSlideWindowWidth(5*time.Minute),
+					"#EF4444",
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)
@@ -471,6 +476,7 @@ func TestFindByTimeRangeOrderSuccess(t *testing.T) {
 					domain.TypeNear,
 					false,
 					domain.MustSlideWindowWidth(5*time.Minute),
+					"#EF4444",
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)
@@ -533,6 +539,7 @@ func TestUpdateSuccess(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -595,6 +602,7 @@ func TestUpdateNotFoundError(t *testing.T) {
 				domain.TypeNear,
 				false,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 				time.Now().Add(-1*time.Hour),
 				time.Now(),
 			)
@@ -646,6 +654,7 @@ func TestDeleteSuccess(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -742,6 +751,7 @@ func TestWithTxCommitSuccess(t *testing.T) {
 					taskID,
 					domain.TypeNear,
 					domain.MustSlideWindowWidth(5*time.Minute),
+					"#EF4444",
 				)
 				require.NoError(t, err)
 
@@ -809,6 +819,7 @@ func TestWithTxRollbackOnError(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -819,6 +830,7 @@ func TestWithTxRollbackOnError(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -887,6 +899,7 @@ func TestWithTxRollbackOnSaveError(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -897,6 +910,7 @@ func TestWithTxRollbackOnSaveError(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -974,6 +988,7 @@ func TestDeleteByTaskIDSuccess(t *testing.T) {
 					domain.TypeNear,
 					false,
 					domain.MustSlideWindowWidth(5*time.Minute),
+					"#EF4444",
 					time.Now().Add(-1*time.Hour),
 					time.Now(),
 				)
