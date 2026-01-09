@@ -101,6 +101,7 @@ func (uc *remindUseCaseImpl) CreateRemind(ctx context.Context, input CreateRemin
 			taskID,
 			taskType,
 			slideWindowWidth,
+			input.Color,
 		)
 		if err != nil {
 			return RemindsOutput{}, NewValidationError(

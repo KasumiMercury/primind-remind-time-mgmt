@@ -13,6 +13,7 @@ type Remind struct {
 	taskType         Type
 	throttled        bool
 	slideWindowWidth SlideWindowWidth
+	color            string
 	createdAt        time.Time
 	updatedAt        time.Time
 }
@@ -24,6 +25,7 @@ func NewRemind(
 	taskID TaskID,
 	taskType Type,
 	slideWindowWidth SlideWindowWidth,
+	color string,
 ) (*Remind, error) {
 	if remindTime.Before(time.Now().Add(-1 * time.Minute)) {
 		return nil, ErrPastRemindTime
@@ -40,6 +42,7 @@ func NewRemind(
 		taskType:         taskType,
 		throttled:        false,
 		slideWindowWidth: slideWindowWidth,
+		color:            color,
 		createdAt:        now,
 		updatedAt:        now,
 	}, nil
@@ -54,6 +57,7 @@ func Reconstitute(
 	taskType Type,
 	throttled bool,
 	slideWindowWidth SlideWindowWidth,
+	color string,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) *Remind {
@@ -66,6 +70,7 @@ func Reconstitute(
 		taskType:         taskType,
 		throttled:        throttled,
 		slideWindowWidth: slideWindowWidth,
+		color:            color,
 		createdAt:        createdAt,
 		updatedAt:        updatedAt,
 	}
@@ -116,6 +121,10 @@ func (r *Remind) TaskType() Type {
 
 func (r *Remind) SlideWindowWidth() SlideWindowWidth {
 	return r.slideWindowWidth
+}
+
+func (r *Remind) Color() string {
+	return r.color
 }
 
 func (r *Remind) CreatedAt() time.Time {

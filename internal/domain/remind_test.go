@@ -83,7 +83,7 @@ func TestNewRemindSuccess(t *testing.T) {
 			taskID := createValidTaskID(t)
 			devices := createValidDevices(t, 1)
 
-			remind, err := domain.NewRemind(tt.remindTime, userID, devices, taskID, tt.taskType, domain.MustSlideWindowWidth(5*time.Minute))
+			remind, err := domain.NewRemind(tt.remindTime, userID, devices, taskID, tt.taskType, domain.MustSlideWindowWidth(5*time.Minute), "#EF4444")
 
 			assert.NoError(t, err)
 			assert.NotNil(t, remind)
@@ -131,7 +131,7 @@ func TestNewRemindError(t *testing.T) {
 			taskID := createValidTaskID(t)
 			devices := createValidDevices(t, 1)
 
-			_, err := domain.NewRemind(tt.remindTime, userID, devices, taskID, tt.taskType, domain.MustSlideWindowWidth(5*time.Minute))
+			_, err := domain.NewRemind(tt.remindTime, userID, devices, taskID, tt.taskType, domain.MustSlideWindowWidth(5*time.Minute), "#EF4444")
 
 			assert.ErrorIs(t, err, tt.expectedErr)
 		})
@@ -170,6 +170,7 @@ func TestNewRemindWithMultipleDevicesSuccess(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 
 			assert.NoError(t, err)
@@ -200,6 +201,7 @@ func TestMarkAsThrottledSuccess(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 			assert.False(t, remind.IsThrottled())
@@ -234,6 +236,7 @@ func TestMarkAsThrottledError(t *testing.T) {
 				taskID,
 				domain.TypeNear,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 			)
 			require.NoError(t, err)
 
@@ -285,6 +288,7 @@ func TestIsDueSuccess(t *testing.T) {
 				domain.TypeNear,
 				false,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 				time.Now(),
 				time.Now(),
 			)
@@ -329,6 +333,7 @@ func TestReconstituteSuccess(t *testing.T) {
 				taskType,
 				tt.throttled,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 				createdAt,
 				updatedAt,
 			)
@@ -376,6 +381,7 @@ func TestReconstituteWithPastTimeSuccess(t *testing.T) {
 				domain.TypeNear,
 				false,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 				time.Now(),
 				time.Now(),
 			)
@@ -415,6 +421,7 @@ func TestRemindGettersSuccess(t *testing.T) {
 				taskType,
 				true,
 				domain.MustSlideWindowWidth(5*time.Minute),
+				"#EF4444",
 				createdAt,
 				updatedAt,
 			)
@@ -459,6 +466,7 @@ func TestNewRemindGeneratesUniqueIDsSuccess(t *testing.T) {
 					taskID,
 					domain.TypeNear,
 					domain.MustSlideWindowWidth(5*time.Minute),
+					"#EF4444",
 				)
 				require.NoError(t, err)
 

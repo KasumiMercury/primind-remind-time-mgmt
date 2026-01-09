@@ -16,7 +16,7 @@ type DeviceJSON struct {
 
 type DevicesJSONB []DeviceJSON
 
-func (d *DevicesJSONB) Scan(value interface{}) error {
+func (d *DevicesJSONB) Scan(value any) error {
 	if value == nil {
 		*d = nil
 
@@ -40,16 +40,17 @@ func (d DevicesJSONB) Value() (driver.Value, error) {
 }
 
 type RemindModel struct {
-	ID          string       `gorm:"column:id;type:uuid;primaryKey"`
-	Time        time.Time    `gorm:"column:time;type:timestamptz;not null;index:idx_reminds_time;uniqueIndex:idx_reminds_task_id_time"`
-	UserID      string       `gorm:"column:user_id;type:uuid;not null;index:idx_reminds_user_id"`
-	Devices     DevicesJSONB `gorm:"column:devices;type:jsonb;not null"`
-	TaskID      string       `gorm:"column:task_id;type:uuid;not null;uniqueIndex:idx_reminds_task_id_time"`
-	TaskType    string       `gorm:"column:task_type;type:varchar(255);not null"`
-	Throttled        bool  `gorm:"column:throttled;type:boolean;not null;default:false;index:idx_reminds_throttled"`
-	SlideWindowWidth int32 `gorm:"column:slide_window_width;type:integer;not null"` // stored as seconds
+	ID               string       `gorm:"column:id;type:uuid;primaryKey"`
+	Time             time.Time    `gorm:"column:time;type:timestamptz;not null;index:idx_reminds_time;uniqueIndex:idx_reminds_task_id_time"`
+	UserID           string       `gorm:"column:user_id;type:uuid;not null;index:idx_reminds_user_id"`
+	Devices          DevicesJSONB `gorm:"column:devices;type:jsonb;not null"`
+	TaskID           string       `gorm:"column:task_id;type:uuid;not null;uniqueIndex:idx_reminds_task_id_time"`
+	TaskType         string       `gorm:"column:task_type;type:varchar(255);not null"`
+	Throttled        bool         `gorm:"column:throttled;type:boolean;not null;default:false;index:idx_reminds_throttled"`
+	SlideWindowWidth int32        `gorm:"column:slide_window_width;type:integer;not null"` // stored as seconds
+	Color            string       `gorm:"column:color;type:varchar(7)"`                    // hex color code e.g. "#EF4444"
 	CreatedAt        time.Time    `gorm:"column:created_at;type:timestamptz;not null"`
-	UpdatedAt   time.Time    `gorm:"column:updated_at;type:timestamptz;not null"`
+	UpdatedAt        time.Time    `gorm:"column:updated_at;type:timestamptz;not null"`
 }
 
 func (RemindModel) TableName() string {
@@ -106,6 +107,7 @@ func (m *RemindModel) ToEntity() (*domain.Remind, error) {
 		taskType,
 		m.Throttled,
 		slideWindowWidth,
+		m.Color,
 		m.CreatedAt,
 		m.UpdatedAt,
 	), nil
@@ -129,6 +131,7 @@ func FromEntity(e *domain.Remind) *RemindModel {
 		TaskType:         string(e.TaskType()),
 		Throttled:        e.IsThrottled(),
 		SlideWindowWidth: e.SlideWindowWidth().Seconds(),
+		Color:            e.Color(),
 		CreatedAt:        e.CreatedAt(),
 		UpdatedAt:        e.UpdatedAt(),
 	}
