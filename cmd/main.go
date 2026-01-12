@@ -8,16 +8,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"connectrpc.com/grpchealth"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"
 
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/app"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/config"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/health"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/handler"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/repository"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/logging"
@@ -133,12 +136,30 @@ func run() error {
 	remindUseCase := app.NewRemindUseCase(remindRepo, publisher)
 	remindHandler := handler.NewRemindHandler(remindUseCase)
 
+	// Create health checker
+	healthChecker := health.NewChecker(sqlDB, cfg.PubSub.NatsURL, Version)
+
 	// Setup router
-	router := setupRouter(remindHandler)
+	router := setupRouter(remindHandler, healthChecker)
+
+	// gRPC Health Checking Protocol (grpc.health.v1.Health/Check)
+	grpcHealthChecker := health.NewGRPCChecker(healthChecker)
+	grpcHealthPath, grpcHealthHandler := grpchealth.NewHandler(grpcHealthChecker)
+
+	// Create multiplexed handler for Gin + gRPC health
+	httpHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasPrefix(req.URL.Path, grpcHealthPath) {
+			grpcHealthHandler.ServeHTTP(w, req)
+
+			return
+		}
+
+		router.ServeHTTP(w, req)
+	})
 
 	server := &http.Server{
 		Addr:              cfg.Server.Address(),
-		Handler:           router,
+		Handler:           httpHandler,
 		ReadTimeout:       cfg.Server.ReadTimeout,
 		WriteTimeout:      cfg.Server.WriteTimeout,
 		IdleTimeout:       120 * time.Second,
