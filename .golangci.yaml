@@ -33,6 +33,7 @@ linters:
                 - 'github\.com/ThreeDotsLabs/watermill-nats/v2/pkg/nats\.PublisherConfig'
                 - 'github\.com/ThreeDotsLabs/watermill-nats/v2/pkg/nats\.JetStreamConfig'
                 - 'github\.com/nats-io/nats\.go/jetstream\.StreamConfig'
+                - '.*health\.CheckResult'
         wsl_v5:
             allow-first-in-block: true
             allow-whole-block: false
