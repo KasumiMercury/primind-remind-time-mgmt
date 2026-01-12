@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"connectrpc.com/grpchealth"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"
@@ -140,9 +142,22 @@ func run() error {
 	// Setup router
 	router := setupRouter(remindHandler, healthChecker)
 
+	// gRPC Health Checking Protocol (grpc.health.v1.Health/Check)
+	grpcHealthChecker := health.NewGRPCChecker(healthChecker)
+	grpcHealthPath, grpcHealthHandler := grpchealth.NewHandler(grpcHealthChecker)
+
+	// Create multiplexed handler for Gin + gRPC health
+	httpHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasPrefix(req.URL.Path, grpcHealthPath) {
+			grpcHealthHandler.ServeHTTP(w, req)
+			return
+		}
+		router.ServeHTTP(w, req)
+	})
+
 	server := &http.Server{
 		Addr:              cfg.Server.Address(),
-		Handler:           router,
+		Handler:           httpHandler,
 		ReadTimeout:       cfg.Server.ReadTimeout,
 		WriteTimeout:      cfg.Server.WriteTimeout,
 		IdleTimeout:       120 * time.Second,
