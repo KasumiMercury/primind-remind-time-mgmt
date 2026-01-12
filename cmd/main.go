@@ -150,8 +150,10 @@ func run() error {
 	httpHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if strings.HasPrefix(req.URL.Path, grpcHealthPath) {
 			grpcHealthHandler.ServeHTTP(w, req)
+
 			return
 		}
+
 		router.ServeHTTP(w, req)
 	})
 

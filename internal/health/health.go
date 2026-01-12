@@ -63,6 +63,7 @@ func (c *Checker) Check(ctx context.Context) *HealthStatus {
 	// PostgreSQL check
 	if c.db != nil {
 		start := time.Now()
+
 		if err := c.db.PingContext(checkCtx); err != nil {
 			status.Status = StatusUnhealthy
 			status.Checks["postgres"] = CheckResult{
@@ -80,6 +81,7 @@ func (c *Checker) Check(ctx context.Context) *HealthStatus {
 	// NATS check (only if configured)
 	if c.natsURL != "" {
 		start := time.Now()
+
 		if err := c.checkNATS(checkCtx); err != nil {
 			status.Status = StatusUnhealthy
 			status.Checks["nats"] = CheckResult{
@@ -103,7 +105,9 @@ func (c *Checker) checkNATS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	conn.Close()
+
 	return nil
 }
 
@@ -150,6 +154,7 @@ func (g *GRPCChecker) Check(ctx context.Context, req *grpchealth.CheckRequest) (
 			Status: grpchealth.StatusServing,
 		}, nil
 	}
+
 	return &grpchealth.CheckResponse{
 		Status: grpchealth.StatusNotServing,
 	}, nil
