@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/config"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/health"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/handler"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/pubsub"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability"
@@ -67,7 +68,7 @@ func initObservability(ctx context.Context) (*observability.Resources, error) {
 	return obs, nil
 }
 
-func setupRouter(remindHandler *handler.RemindHandler) *gin.Engine {
+func setupRouter(remindHandler *handler.RemindHandler, healthChecker *health.Checker) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()
@@ -82,7 +83,7 @@ func setupRouter(remindHandler *handler.RemindHandler) *gin.Engine {
 	// Add observability middleware
 	router.Use(
 		middleware.Gin(middleware.GinConfig{
-			SkipPaths:       []string{"/ping", "/health", "/healthz", "/metrics"},
+			SkipPaths:       []string{"/ping", "/health", "/health/live", "/health/ready", "/healthz", "/metrics"},
 			Module:          logging.Module("remind"),
 			ModuleResolver:  nil,
 			Worker:          false,
@@ -96,6 +97,11 @@ func setupRouter(remindHandler *handler.RemindHandler) *gin.Engine {
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
+
+	// Health check endpoints
+	router.GET("/health/live", healthChecker.LiveHandler())
+	router.GET("/health/ready", healthChecker.ReadyHandler())
+	router.GET("/health", healthChecker.ReadyHandler())
 
 	v1 := router.Group("/api/v1")
 	remindHandler.RegisterRoutes(v1)

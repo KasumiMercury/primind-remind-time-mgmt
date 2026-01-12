@@ -18,6 +18,7 @@ import (
 
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/app"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/config"
+	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/health"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/handler"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/infra/repository"
 	"github.com/KasumiMercury/primind-remind-time-mgmt/internal/observability/logging"
@@ -133,8 +134,11 @@ func run() error {
 	remindUseCase := app.NewRemindUseCase(remindRepo, publisher)
 	remindHandler := handler.NewRemindHandler(remindUseCase)
 
+	// Create health checker
+	healthChecker := health.NewChecker(sqlDB, cfg.PubSub.NatsURL, Version)
+
 	// Setup router
-	router := setupRouter(remindHandler)
+	router := setupRouter(remindHandler, healthChecker)
 
 	server := &http.Server{
 		Addr:              cfg.Server.Address(),
