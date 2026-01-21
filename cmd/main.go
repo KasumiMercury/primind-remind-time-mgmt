@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/grpchealth"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"
