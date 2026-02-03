@@ -26,6 +26,7 @@ linters:
             exclude:
                 - 'log/slog\.HandlerOptions'
                 - 'net/http\.Server'
+                - 'golang\.org/x/net/http2\.Server'
                 - 'gorm\.io/gorm\.Config'
                 - '.*\.RemindModel'
                 - 'google\.golang\.org/protobuf/encoding/protojson\.MarshalOptions'
