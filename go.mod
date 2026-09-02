@@ -3,7 +3,7 @@ module github.com/KasumiMercury/primind-remind-time-mgmt
 go 1.25.5
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.1
 	buf.build/go/protovalidate v1.1.0
 	connectrpc.com/grpchealth v1.4.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0
@@ -25,7 +25,8 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 	go.uber.org/mock v0.6.0
-	google.golang.org/protobuf v1.36.11
+	golang.org/x/net v0.48.0
+	google.golang.org/protobuf v1.36.12
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 	gorm.io/plugin/opentelemetry v0.1.16
@@ -167,7 +168,6 @@ require (
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
-	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
