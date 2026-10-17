@@ -5,7 +5,8 @@ go 1.27.0
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	buf.build/go/protovalidate v1.4.0
-	connectrpc.com/grpchealth v1.5.0
+	connectrpc.com/connect/v2 v2.0.1
+	connectrpc.com/grpchealth/v2 v2.0.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.62.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.38.0
 	github.com/ThreeDotsLabs/watermill v1.5.3
@@ -46,7 +47,6 @@ require (
 	cloud.google.com/go/pubsub/v2 v2.7.0 // indirect
 	cloud.google.com/go/spanner v1.96.1 // indirect
 	cloud.google.com/go/trace v1.17.0 // indirect
-	connectrpc.com/connect v1.21.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20261013165250-51075c6ea6bc // indirect

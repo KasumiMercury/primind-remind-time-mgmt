@@ -13,7 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/grpchealth"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/grpchealth/v2"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"
@@ -144,7 +146,12 @@ func run() error {
 
 	// gRPC Health Checking Protocol (grpc.health.v1.Health/Check)
 	grpcHealthChecker := health.NewGRPCChecker(healthChecker)
-	grpcHealthPath, grpcHealthHandler := grpchealth.NewHandler(grpcHealthChecker)
+	grpcHealthServer := connect.NewServer()
+	grpchealth.Register(grpcHealthServer, grpcHealthChecker)
+
+	grpcHealthPath := "/" + grpchealth.HealthV1ServiceName + "/"
+	grpcHealthHandler := http.NewServeMux()
+	connecthttp.Mount(grpcHealthHandler, grpcHealthServer)
 
 	// Create multiplexed handler for Gin + gRPC health
 	httpHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
