@@ -7,7 +7,7 @@ linters:
         - contextcheck
         - fatcontext
         - containedctx
-        - exhaustruct
+        - exhaustruct_v5
         - exhaustive
         - gosec
         - nilnil
@@ -22,11 +22,10 @@ linters:
                 - fmt.Print
                 - fmt.Printf
                 - fmt.Println
-        exhaustruct:
-            exclude:
+        exhaustruct_v5:
+            ignore-patterns:
                 - 'log/slog\.HandlerOptions'
                 - 'net/http\.Server'
-                - 'golang\.org/x/net/http2\.Server'
                 - 'gorm\.io/gorm\.Config'
                 - '.*\.RemindModel'
                 - 'google\.golang\.org/protobuf/encoding/protojson\.MarshalOptions'
@@ -44,7 +43,7 @@ linters:
             - path: _test\.go
               linters:
                   - errcheck
-                  - exhaustruct
+                  - exhaustruct_v5
                   - gosec
                   - staticcheck
                   - fatcontext
