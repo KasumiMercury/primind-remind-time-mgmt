@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"connectrpc.com/grpchealth"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"
@@ -159,10 +157,14 @@ func run() error {
 		router.ServeHTTP(w, req)
 	})
 
-	h2s := &http2.Server{}
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	server := &http.Server{
 		Addr:              cfg.Server.Address(),
-		Handler:           h2c.NewHandler(httpHandler, h2s),
+		Handler:           httpHandler,
+		Protocols:         protocols,
 		ReadTimeout:       cfg.Server.ReadTimeout,
 		WriteTimeout:      cfg.Server.WriteTimeout,
 		IdleTimeout:       120 * time.Second,
