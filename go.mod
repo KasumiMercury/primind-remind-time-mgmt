@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	buf.build/go/protovalidate v1.4.0
-	connectrpc.com/connect/v2 v2.0.1
+	connectrpc.com/connect/v2 v2.0.2
 	connectrpc.com/grpchealth/v2 v2.0.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.62.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.38.0
@@ -14,7 +14,7 @@ require (
 	github.com/ThreeDotsLabs/watermill-nats/v2 v2.2.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
-	github.com/nats-io/nats.go v1.54.0
+	github.com/nats-io/nats.go v1.55.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.44.0
